@@ -1,0 +1,139 @@
+# Amira-Script-Object V3.0
+
+
+  $this proc sayHello {} {
+     echo "\n---------- module \"material extract\" loaded successfully :) ----------"
+  }
+
+  
+  
+  $this proc constructor {} {
+  
+  
+	$this sayHello
+		
+  	$this newPortButtonList "SelectMatVolSet1" 2
+  	$this SelectMatVolSet1 setLabel "Select Mat. Vol. Set1"
+  	$this SelectMatVolSet1 setLabel 0 "None"
+  	$this SelectMatVolSet1 setLabel 1 "All"
+  	
+  	$this newPortButtonList "SelectMatVolSet2" 2
+  	$this SelectMatVolSet2 setLabel "Select Mat. Vol. Set2"
+  	$this SelectMatVolSet2 setLabel 0 "None"
+  	$this SelectMatVolSet2 setLabel 1 "All"
+  
+  	#creates new port connections that can connect to HxUniformLabelField3:
+  	$this newPortConnection "VolumeSet1" HxUniformLabelField3
+  	$this newPortConnection "VolumeSet2" HxUniformLabelField3
+  	
+  	$this deletePort Data #shit, can not be deleted hmm...
+  
+  }
+  
+  
+  $this proc destructor {} {
+  
+  
+  }
+  
+  
+  $this proc compute {} {
+  
+  	set myVolumeSet1Source [$this VolumeSet1 source]
+  	set myVolumeSet2Source [$this VolumeSet2 source]
+  	
+  	set myButtonNone1WasHit [$this SelectMatVolSet1 wasHit 0]
+	set myButtonAll1WasHit [$this SelectMatVolSet1 wasHit 1]
+	set myButtonNone2WasHit [$this SelectMatVolSet2 wasHit 0]
+	set myButtonAll2WasHit [$this SelectMatVolSet2 wasHit 1]
+  
+  	if {[$this VolumeSet1 isNew] == 0} {
+  		#nothing should happen here
+  	} else {
+  	
+  		if {$myVolumeSet1Source == ""} {
+  			$this deletePort MatVolSet1
+  			echo "no module connected to VolumeSet1 connection port"
+  		} else {
+  		
+  			$this deletePort MatVolSet1
+  			
+  			set myMaterialsList1  [$myVolumeSet1Source parameters Materials list]
+ 			set myMaterialCount1 [llength $myMaterialsList1]
+ 			
+ 			$this newPortToggleList "MatVolSet1" $myMaterialCount1
+ 			$this MatVolSet1 setLabel "Mat. Vol. Set1"
+ 			
+ 			for {set i 0} {$i <= [$this MatVolSet1 getNum]} {incr i} {
+ 				$this MatVolSet1 setLabel $i [lindex $myMaterialsList1 $i]
+ 			}
+ 			
+ 			
+ 			echo "$this Materials in VolumeSet 0: $myMaterialCount1"
+ 			
+ 		}
+ 			
+ 	}
+
+ 	
+ 	if {[$this VolumeSet2 isNew] == 0} {
+ 			#nothing should happen here
+ 	} else {
+ 		
+ 		if {$myVolumeSet2Source == ""} {
+ 			$this deletePort MatVolSet2
+ 			echo "no module connected to VolumeSet1 connection port"
+ 		} else {
+ 			
+ 			$this deletePort MatVolSet2
+ 				
+ 			set myMaterialsList2  [$myVolumeSet2Source parameters Materials list]
+ 			set myMaterialCount2 [llength $myMaterialsList2]
+ 			
+ 			$this newPortToggleList "MatVolSet2" $myMaterialCount2
+ 			$this MatVolSet2 setLabel "Mat. Vol. Set2"
+ 			
+ 			for {set i 0} {$i <= [$this MatVolSet2 getNum]} {incr i} {
+ 				$this MatVolSet2 setLabel $i [lindex $myMaterialsList2 $i]
+ 			}
+ 			
+ 			echo "$this Materials in VolumeSet 2: $myMaterialCount2"
+ 			
+ 		}
+ 			
+ 	}
+ 	
+ 	if {$myButtonNone1WasHit == 1 && $myVolumeSet1Source != ""} {
+ 	
+ 		for {set i 0} {$i <= [$this MatVolSet1 getNum]} {incr i} {
+ 			$this MatVolSet1 setValue $i 0
+ 		}
+ 		echo "Button \"None\" pressed"
+ 		
+ 	}
+ 	if {$myButtonAll1WasHit == 1 && $myVolumeSet1Source != ""} {
+ 		for {set i 0} {$i <= [$this MatVolSet1 getNum]} {incr i} {
+ 			$this MatVolSet1 setValue $i 1
+ 		}
+ 		echo "Button \"All\" pressed"
+ 	}
+ 	
+  	if {$myButtonNone2WasHit == 1 && $myVolumeSet2Source != ""} {
+  	
+  		for {set i 0} {$i <= [$this MatVolSet2 getNum]} {incr i} {
+  			$this MatVolSet2 setValue $i 0
+  		}
+  		echo "Button \"None\" pressed"
+  		
+  	}
+  	if {$myButtonAll2WasHit == 1 && $myVolumeSet2Source != ""} {
+  		for {set i 0} {$i <= [$this MatVolSet2 getNum]} {incr i} {
+  			$this MatVolSet2 setValue $i 1
+  		}
+  		echo "Button \"All\" pressed"
+  	}
+  	
+  	
+  }
+  
+  
