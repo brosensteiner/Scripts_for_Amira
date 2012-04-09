@@ -2,6 +2,10 @@
 
 set moduleName [string map {"\.scro" ""} $this]
 
+#i dont´t want name clashes with user given names for modules so here are the hopefully cryptic enough generated names for the needed but hidden modules
+set surfaceGen1Name XXXYYYZZZSurfaceGen_${moduleName}
+set surfaceGen2Name XXXYYYZZZSurfaceGen_${moduleName}
+
 $this proc sayHello {} {
 	global moduleName
    echo "\n************ module \"$moduleName\" loaded successfully :) ************\n"
@@ -11,27 +15,29 @@ $this proc say {something} {
 	echo "$moduleName: $something"
 }
 
-#function which connects moduleVar module with sourceVar module and checks if connection is valid
-#if moduleVar module does not exist it also gets created in the pool
-$this proc validSourceTestAndConnectIfOk {moduleVar sourceVar} {
+#function which creates moduleType and connects it with sourceName module and checks if connection is valid
+#moduleName is the name of the module in the pool
+#if moduleName module does not exist it also gets created in the pool
+$this proc createModuleAndConnectIfOkToSource {moduleType moduleName sourceName} {
 
-	if {[lsearch -exact [all HxGMC] $moduleVar] == -1} {
+	if {[lsearch -exact [all $moduleType] $moduleName] == -1} {
 	
-		 	$this setVar moduleVarIntern [create HxGMC $moduleVar]
-		 	$this setVarSerialize moduleVarIntern 0;#moduleVarIntern should not be saved with network scipt
-		 	
-		 	if {[[$this getVar moduleVarIntern] data validSource $sourceVar] == 1} {
-		 		[$this getVar moduleVarIntern] data connect $sourceVar
+		 	set moduleNameIntern [create $moduleType $moduleName]
+		 	if {[$moduleNameIntern data validSource $sourceName] == 1} {
+		 		$moduleNameIntern data connect $sourceName
+		 		
 		 	}
 		 } else {
 		 
-		 	[$this getVar moduleVarIntern] data connect $sourceVar
-		 	
+		 	set moduleNameIntern $moduleName
+		 	if {[$moduleNameIntern data validSource $sourceName] == 1} {
+		 		$moduleNameIntern data connect $sourceName
+		 	}
 	}
 	
 }
 
-    
+
 $this proc constructor {} {
 
 	$this sayHello
@@ -47,7 +53,7 @@ $this proc constructor {} {
 	$this SelectMatVolSet2 setLabel 0 "None"
 	$this SelectMatVolSet2 setLabel 1 "All"
 
-	#creates new port connections that can connect to HxUniformLabelField3:
+	#creates new port connections that can connect to HxUniformLabelField3 data class:
 	$this newPortConnection "VolumeSet1PortCon" HxUniformLabelField3
 	$this VolumeSet1PortCon setLabel "VolumeSet 1"
 	$this newPortConnection "VolumeSet2PortCon" HxUniformLabelField3
@@ -73,6 +79,9 @@ $this proc savePreparation {datadir savingFlags} {
   
   
 $this proc compute {} {
+	global moduleName
+	global surfaceGen1Name
+	global surfaceGen2Name
 
 	set myVolumeSet1Source [$this VolumeSet1PortCon source]
 	set myVolumeSet2Source [$this VolumeSet2PortCon source]
@@ -104,7 +113,9 @@ $this proc compute {} {
 			}
 			
 			
-			$this validSourceTestAndConnectIfOk "XXXSurfaceGenXXX" $myVolumeSet1Source
+			$this createModuleAndConnectIfOkToSource "HxGMC" $surfaceGen1Name $myVolumeSet1Source
+			
+			
 			
 			$this say "Materials in volume set 1: $myMaterialCount1"
 			
