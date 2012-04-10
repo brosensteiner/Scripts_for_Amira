@@ -3,8 +3,8 @@
 set moduleName [string map {"\.scro" ""} $this]
 
 #i dont´t want name clashes with user given names for modules so here are the hopefully cryptic enough generated names for the needed but hidden modules
-set surfaceGen1Name XXXYYYZZZSurfaceGen_${moduleName}
-set surfaceGen2Name XXXYYYZZZSurfaceGen_${moduleName}
+set surfaceGen1Name XxXYyYZzZSurfaceGen_${moduleName}
+set surfaceGen2Name XxXYyYZzZSurfaceGen_${moduleName}
 
 $this proc sayHello {} {
 	global moduleName
@@ -79,9 +79,7 @@ $this proc savePreparation {datadir savingFlags} {
   
   
 $this proc compute {} {
-	global moduleName
-	global surfaceGen1Name
-	global surfaceGen2Name
+	global moduleName surfaceGen1Name surfaceGen2Name
 
 	set myVolumeSet1Source [$this VolumeSet1PortCon source]
 	set myVolumeSet2Source [$this VolumeSet2PortCon source]
