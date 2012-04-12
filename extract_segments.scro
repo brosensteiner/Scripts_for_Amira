@@ -37,27 +37,56 @@ $this proc createModuleAndConnectIfOkToSource {moduleType moduleName sourceName}
 	
 }
 
-
+ 
 $this proc constructor {} {
 
 	$this sayHello
+	
+	#creates Smoothing menu port and formats it
+	$this newPortMultiMenu smoothing 3
+	$this smoothing setLabel "Smoothing"
+	$this smoothing setLabel 0 0 "none"
+	$this smoothing setLabel 0 1 "constrained smoothing"
+	$this smoothing setLabel 0 2 "unconstrained smoothing"
+	
+	#creates the Smoothing port sliders and formats it
+	$this newPortFloatSlider  SmoothingSliderPort1
+	$this SmoothingSliderPort1 setLabel "SmoothingKernelSize Set 1"
+	$this SmoothingSliderPort1 setMinMax 1 9
+	$this SmoothingSliderPort1 setFormat "%.2g"
+	$this SmoothingSliderPort1 setNumColumns 3
+	$this SmoothingSliderPort1 setValue 4;#initial value for smoothing slider
+	$this SmoothingSliderPort1 setTracking 1
+	
+	$this newPortFloatSlider  SmoothingSliderPort2
+	$this SmoothingSliderPort2 setLabel "SmoothingKernelSize Set 2"
+	$this SmoothingSliderPort2 setMinMax 1 9
+	$this SmoothingSliderPort2 setFormat "%.2g"
+	$this SmoothingSliderPort2 setNumColumns 3
+	$this SmoothingSliderPort2 setValue 4;#initial value for smoothing slider
+	$this SmoothingSliderPort2 setTracking 1
+	
+	#creates Action Button port
+	$this newPortButtonList ActionButton 1
+	$this ActionButton setLabel "Start calculation"
+	$this ActionButton setLabel 0 "Action!!!"
 
+	#creates new port connections that can connect to HxUniformLabelField3 data class:
+	$this newPortConnection VolumeSet1PortCon HxUniformLabelField3
+	$this VolumeSet1PortCon setLabel "VolumeSet 1"
+	$this newPortConnection VolumeSet2PortCon HxUniformLabelField3
+	$this VolumeSet2PortCon setLabel "VolumeSet 2"
+	
 	#creates the "None" and "All" buttons and formats them
-	$this newPortButtonList "SelectMatVolSet1" 2
+	$this newPortButtonList SelectMatVolSet1 2
 	$this SelectMatVolSet1 setLabel "Select Mat. Volume Set 1"
 	$this SelectMatVolSet1 setLabel 0 "None"
 	$this SelectMatVolSet1 setLabel 1 "All"
-
-	$this newPortButtonList "SelectMatVolSet2" 2
+	
+	$this newPortButtonList SelectMatVolSet2 2
 	$this SelectMatVolSet2 setLabel "Select Mat. Volume Set 2"
 	$this SelectMatVolSet2 setLabel 0 "None"
 	$this SelectMatVolSet2 setLabel 1 "All"
-
-	#creates new port connections that can connect to HxUniformLabelField3 data class:
-	$this newPortConnection "VolumeSet1PortCon" HxUniformLabelField3
-	$this VolumeSet1PortCon setLabel "VolumeSet 1"
-	$this newPortConnection "VolumeSet2PortCon" HxUniformLabelField3
-	$this VolumeSet2PortCon setLabel "VolumeSet 2"
 
 	#$this deletePort Data #shit, can not be deleted hmm...
 	
@@ -65,7 +94,7 @@ $this proc constructor {} {
 
 }
   
-  
+   
 $this proc destructor {} {
 
 	set hideNewModules 0
@@ -90,7 +119,19 @@ $this proc compute {} {
 	set myButtonAll2WasHit [$this SelectMatVolSet2 wasHit 1]
 
 	if {[$this VolumeSet1PortCon isNew] == 0} {
-		#nothing should happen for the moment here, but maybe in future ...
+	
+		$surfaceGen1Name setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];#continous update of SmoothKernelSize, which determines the "smoothness" of the generated surface
+		
+		if {[$this ActionButton getValue] == 0} {# start calculation when action button is pressed
+
+			$surfaceGen1Name fire
+			$surfaceGen1Name setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];#SmoothKernelSize is a internal variable which i will allow to set by user in gui
+			$surfaceGen1Name smoothing setValueString "constrained smoothing";
+			$surfaceGen1Name action setValue 0
+			$surfaceGen1Name fire
+			
+		}
+		
 	} else {
 	
 		if {$myVolumeSet1Source == ""} {
@@ -113,8 +154,11 @@ $this proc compute {} {
 			
 			$this createModuleAndConnectIfOkToSource "HxGMC" $surfaceGen1Name $myVolumeSet1Source
 			
-			
-			
+			$surfaceGen1Name fire;
+			$surfaceGen1Name setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];
+			$surfaceGen1Name smoothing setValueString "constrained smoothing";
+			$surfaceGen1Name fire;
+						
 			$this say "Materials in volume set 1: $myMaterialCount1"
 			
 		}
@@ -147,6 +191,8 @@ $this proc compute {} {
 		}
 			
 	}
+	
+	
 	
 	if {$myButtonNone1WasHit == 1 && $myVolumeSet1Source != ""} {
 	
