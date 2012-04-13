@@ -3,8 +3,10 @@
 set moduleName [string map {"\.scro" ""} $this]
 
 #i dont´t want name clashes with user given names for modules so here are the hopefully cryptic enough generated names for the needed but hidden modules
-set surfaceGen1Name XxXYyYZzZSurfaceGen_${moduleName}
-set surfaceGen2Name XxXYyYZzZSurfaceGen_${moduleName}
+set surfaceGen1Name XxXYyYZzZSurfaceGen1_${moduleName}
+set surfaceGen2Name XxXYyYZzZSurfaceGen2_${moduleName}
+set surfaceView1Name XxXYyYZzZSurfaceView1_${moduleName}
+set surfaceView2Name XxXYyYZzZSurfaceView2_${moduleName}
 
 $this proc sayHello {} {
 	global moduleName
@@ -18,24 +20,42 @@ $this proc say {something} {
 #function which creates moduleType and connects it with sourceName module and checks if connection is valid
 #moduleName is the name of the module in the pool
 #if moduleName module does not exist it also gets created in the pool
+#function returns the name string of the newly created module
 $this proc createModuleAndConnectIfOkToSource {moduleType moduleName sourceName} {
+
+	set returnedModule ""
 
 	if {[lsearch -exact [all $moduleType] $moduleName] == -1} {
 	
-		 	set moduleNameIntern [create $moduleType $moduleName]
-		 	if {[$moduleNameIntern data validSource $sourceName] == 1} {
-		 		$moduleNameIntern data connect $sourceName
+		 	set returnedModule [create $moduleType $moduleName]
+		 	if {[$moduleName data validSource $sourceName] == 1} {
+		 		$moduleName data connect $sourceName
 		 		
 		 	}
 		 } else {
-		 
-		 	set moduleNameIntern $moduleName
-		 	if {[$moduleNameIntern data validSource $sourceName] == 1} {
-		 		$moduleNameIntern data connect $sourceName
+		 	
+		 	set returnedModule $moduleName
+		 	if {[$moduleName data validSource $sourceName] == 1} {
+		 		$moduleName data connect $sourceName
 		 	}
 	}
+	return $returnedModule
+}
+
+#switches the given module menu port remotely from $this ($this must have a corresponding port!)
+$this proc setCorrespondingPort {module menuPort {menuIndex 0}} {
+
+	upvar #0 $module myModule
+	
+	$this fire
+	set thisMenuIndex [$this $menuPort getValue $menuIndex]
+	
+	$myModule fire
+	$myModule $menuPort setValue $menuIndex [string map {0 0 1 2 2 3} $thisMenuIndex] #sting map is important here, this is a buglett in Amira 5 which maps wrong numbers in SurfaceGen smoothing menu. Should be 0,1,2 - but it is 0,2,3!!!
+	$myModule fire
 	
 }
+
 
  
 $this proc constructor {} {
@@ -109,6 +129,7 @@ $this proc savePreparation {datadir savingFlags} {
   
 $this proc compute {} {
 	global moduleName surfaceGen1Name surfaceGen2Name
+	global surfaceView1Name surfaceView2Name
 
 	set myVolumeSet1Source [$this VolumeSet1PortCon source]
 	set myVolumeSet2Source [$this VolumeSet2PortCon source]
@@ -123,15 +144,21 @@ $this proc compute {} {
 		$surfaceGen1Name setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];#continous update of SmoothKernelSize, which determines the "smoothness" of the generated surface
 		
 		if {[$this ActionButton getValue] == 0} {# start calculation when action button is pressed
-
+			
+			
 			$surfaceGen1Name fire
 			$surfaceGen1Name setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];#SmoothKernelSize is a internal variable which i will allow to set by user in gui
-			$surfaceGen1Name smoothing setValueString "constrained smoothing";
-			$surfaceGen1Name action setValue 0
+			$this setCorrespondingPort surfaceGen1Name smoothing;#sets the smoothing port for the hidden SurfaceGen module
+			$surfaceGen1Name action setValue 0;#calculate the polygon surface
+			
 			$surfaceGen1Name fire
 			
+			$this createModuleAndConnectIfOkToSource HxDisplaySurface $surfaceView1Name [lindex [$surfaceGen1Name downStreamConnections] 0 0];#connect a SurfaceView module and show the result in the Viewer
+			
+			$surfaceGen1Name action setValue 0
+			$surfaceGen1Name fire;#last but not least: don´t forget to fire :)
 		}
-		
+				
 	} else {
 	
 		if {$myVolumeSet1Source == ""} {
@@ -152,11 +179,11 @@ $this proc compute {} {
 			}
 			
 			
-			$this createModuleAndConnectIfOkToSource "HxGMC" $surfaceGen1Name $myVolumeSet1Source
+			$this createModuleAndConnectIfOkToSource HxGMC $surfaceGen1Name $myVolumeSet1Source
 			
 			$surfaceGen1Name fire;
 			$surfaceGen1Name setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];
-			$surfaceGen1Name smoothing setValueString "constrained smoothing";
+			$this setCorrespondingPort surfaceGen1Name smoothing;
 			$surfaceGen1Name fire;
 						
 			$this say "Materials in volume set 1: $myMaterialCount1"
