@@ -7,6 +7,8 @@ set surfaceGen1Name XxXYyYZzZSurfaceGen1_${moduleName}
 set surfaceGen2Name XxXYyYZzZSurfaceGen2_${moduleName}
 set surfaceView1Name XxXYyYZzZSurfaceView1_${moduleName}
 set surfaceView2Name XxXYyYZzZSurfaceView2_${moduleName}
+set extractSurface1Name XxXYyYZzZextractSurface1_${moduleName}
+set extractSurface2Name XxXYyYZzZextractSurface2_${moduleName}
 
 $this proc sayHello {} {
 	global moduleName
@@ -21,23 +23,23 @@ $this proc say {something} {
 #moduleName is the name of the module in the pool
 #if moduleName module does not exist it also gets created in the pool
 #function returns the name string of the newly created module
-$this proc createModuleAndConnectIfOkToSource {moduleType moduleName sourceName} {
+$this proc createModuleAndConnectIfOkToSource {moduleType moduleName sourceName {conPortIndex 0}} {
 
-	set returnedModule ""
-
-	if {[lsearch -exact [all $moduleType] $moduleName] == -1} {
+	if {[lsearch -exact [all $moduleType] $moduleName] == -1} {#test if module is already in the pool -1 := not in pool
 	
 		 	set returnedModule [create $moduleType $moduleName]
-		 	if {[$moduleName data validSource $sourceName] == 1} {
-		 		$moduleName data connect $sourceName
-		 		
-		 	}
+		 	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex];#sets the desired connectionPort name, default is 0
+		 	if {[$moduleName $theConnectionPort validSource $sourceName] == 1} {
+		 		$moduleName $theConnectionPort connect $sourceName
+		 	} else { $this say "$sourceName is no valid source for $moduleName" }
+		 	
 		 } else {
 		 	
 		 	set returnedModule $moduleName
-		 	if {[$moduleName data validSource $sourceName] == 1} {
-		 		$moduleName data connect $sourceName
-		 	}
+		 	if {[$moduleName $theConnectionPort validSource $sourceName] == 1} {
+		 		$moduleName $theConnectionPort connect $sourceName
+		 	} else { $this say "$sourceName is no valid source for $moduleName" }
+		 	
 	}
 	return $returnedModule
 }
@@ -48,13 +50,31 @@ $this proc setCorrespondingPort {module menuPort {menuIndex 0}} {
 	upvar #0 $module myModule
 	
 	$this fire
-	set thisMenuIndex [$this $menuPort getValue $menuIndex]
+	set thisMenuIndex [$this $menuPort getValue $menuIndex];#get the value from $this menu (e.g. smoothing port)
 	
 	$myModule fire
-	$myModule $menuPort setValue $menuIndex [string map {0 0 1 2 2 3} $thisMenuIndex] #sting map is important here, this is a buglett in Amira 5 which maps wrong numbers in SurfaceGen smoothing menu. Should be 0,1,2 - but it is 0,2,3!!!
+	$myModule $menuPort setValue $menuIndex [string map {0 0 1 2 2 3} $thisMenuIndex];#sting map is important here, this is a buglett in Amira 5 which maps wrong numbers in SurfaceGen smoothing menu. Should be 0,1,2 - but it is 0,2,3!!!
 	$myModule fire
 	
 }
+
+$this proc getToggleValuesAndSomethingWithIt {module1 module1Port module2 module2Port {portIndex 0}} {
+
+	
+	for {set i 0} {$i < [$module1 $module1Port getNum]} {incr i} {
+	
+		if {[$module1 $module1Port getValue $i] == 1} {
+		
+			$module2 $module2Port setValueString $portIndex [$module1 $module1Port getLabel $i]
+			$module2 fire
+			$module2 buffer setValue 0;#add to buffer (hit add button)
+			$module2 fire
+		}
+		
+	}
+	
+}
+
 
 
  
@@ -87,9 +107,10 @@ $this proc constructor {} {
 	$this SmoothingSliderPort2 setTracking 1
 	
 	#creates Action Button port
-	$this newPortButtonList ActionButton 1
-	$this ActionButton setLabel "Start calculation"
-	$this ActionButton setLabel 0 "Action!!!"
+	$this newPortDoIt action
+	$this action setLabel "Action"
+	$this action setLabel 0 "Dolt"
+	$this action hide;#actually need not be visible, because apply botton does the job
 
 	#creates new port connections that can connect to HxUniformLabelField3 data class:
 	$this newPortConnection VolumeSet1PortCon HxUniformLabelField3
@@ -130,7 +151,9 @@ $this proc savePreparation {datadir savingFlags} {
 $this proc compute {} {
 	global moduleName surfaceGen1Name surfaceGen2Name
 	global surfaceView1Name surfaceView2Name
+	global extractSurface1Name extractSurface2Name
 
+	#some status checks for testing in if blocks
 	set myVolumeSet1Source [$this VolumeSet1PortCon source]
 	set myVolumeSet2Source [$this VolumeSet2PortCon source]
 	
@@ -139,14 +162,15 @@ $this proc compute {} {
 	set myButtonNone2WasHit [$this SelectMatVolSet2 wasHit 0]
 	set myButtonAll2WasHit [$this SelectMatVolSet2 wasHit 1]
 
-	if {[$this VolumeSet1PortCon isNew] == 0} {
-	
-		$surfaceGen1Name setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];#continous update of SmoothKernelSize, which determines the "smoothness" of the generated surface
+	if {[$this VolumeSet1PortCon isNew] == 0} {#if $this has no new port connection
 		
-		if {[$this ActionButton getValue] == 0} {# start calculation when action button is pressed
-			
+		if {[$this action getValue] == 0 && $myVolumeSet1Source != ""} {# start calculation when action button is pressed and $this has a valid source
+		
+			workArea setProgressInfo "starting calculation"
+			workArea setProgressValue 0.4
 			
 			$surfaceGen1Name fire
+			
 			$surfaceGen1Name setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];#SmoothKernelSize is a internal variable which i will allow to set by user in gui
 			$this setCorrespondingPort surfaceGen1Name smoothing;#sets the smoothing port for the hidden SurfaceGen module
 			$surfaceGen1Name action setValue 0;#calculate the polygon surface
@@ -155,23 +179,33 @@ $this proc compute {} {
 			
 			$this createModuleAndConnectIfOkToSource HxDisplaySurface $surfaceView1Name [lindex [$surfaceGen1Name downStreamConnections] 0 0];#connect a SurfaceView module and show the result in the Viewer
 			
-			$surfaceGen1Name action setValue 0
-			$surfaceGen1Name fire;#last but not least: don´t forget to fire :)
+			$surfaceView1Name compute
+			$surfaceView1Name buffer setValue 2;#make shure buffer is empty (hits botton "clear"), before filling it again with getToggleValuesAndSomethingWithIt procedure
+			$surfaceView1Name compute
+			$this getToggleValuesAndSomethingWithIt $this MatVolSet1 $surfaceView1Name materials 1;#sets the buffer in SurfaceView to user specified toggles
+			
+			$this createModuleAndConnectIfOkToSource HxViewBaseExtract $extractSurface1Name $surfaceView1Name
+			
+			workArea setProgressValue 1
+			workArea setProgressInfo "$moduleName finished"
+
 		}
 				
-	} else {
+	} else {#initialization of SurfaceGen (connecting, setting variables ...)
 	
-		if {$myVolumeSet1Source == ""} {
+		workArea setProgressValue 0.0
+	
+		if {$myVolumeSet1Source == ""} {#if $this got disconnected
 			$this deletePort MatVolSet1
 			$this say "no module connected to VolumeSet1PortCon connection port"
-		} else {
+		} else {# $this is newly connected
 		
 			$this deletePort MatVolSet1
 			
 			set myMaterialsList1  [$myVolumeSet1Source parameters Materials list]
 			set myMaterialCount1 [llength $myMaterialsList1]
 			
-			$this newPortToggleList "MatVolSet1" $myMaterialCount1
+			$this newPortToggleList MatVolSet1 $myMaterialCount1
 			$this MatVolSet1 setLabel "Mat. Volume Set 1"
 			
 			for {set i 0} {$i <= [$this MatVolSet1 getNum]} {incr i} {
@@ -182,12 +216,14 @@ $this proc compute {} {
 			$this createModuleAndConnectIfOkToSource HxGMC $surfaceGen1Name $myVolumeSet1Source
 			
 			$surfaceGen1Name fire;
+			
 			$surfaceGen1Name setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];
 			$this setCorrespondingPort surfaceGen1Name smoothing;
+			
 			$surfaceGen1Name fire;
 						
 			$this say "Materials in volume set 1: $myMaterialCount1"
-			
+						
 		}
 			
 	}
