@@ -2,6 +2,8 @@
 
 set moduleName [string map {"\.scro" ""} $this]
 
+set theExtractedSurfacesList {};#this will list contains all extracted surfaces
+
 #i dont´t want name clashes with user given names for modules so here are the hopefully cryptic enough generated names for the needed but hidden modules
 set surfaceGen1Name XxXYyYZzZSurfaceGen1_${moduleName}
 set surfaceGen2Name XxXYyYZzZSurfaceGen2_${moduleName}
@@ -25,23 +27,28 @@ $this proc say {something} {
 #function returns the name string of the newly created module
 $this proc createModuleAndConnectIfOkToSource {moduleType moduleName sourceName {conPortIndex 0}} {
 
+	
+	
 	if {[lsearch -exact [all $moduleType] $moduleName] == -1} {#test if module is already in the pool -1 := not in pool
 	
 		 	set returnedModule [create $moduleType $moduleName]
 		 	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex];#sets the desired connectionPort name, default is 0
 		 	if {[$moduleName $theConnectionPort validSource $sourceName] == 1} {
-		 		$moduleName $theConnectionPort connect $sourceName
+		 		if {[$moduleName $theConnectionPort source] ne $sourceName} {$moduleName $theConnectionPort connect $sourceName};
 		 	} else { $this say "$sourceName is no valid source for $moduleName" }
 		 	
 		 } else {
 		 	
 		 	set returnedModule $moduleName
+		 	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex]
 		 	if {[$moduleName $theConnectionPort validSource $sourceName] == 1} {
-		 		$moduleName $theConnectionPort connect $sourceName
+		 		if {[$moduleName $theConnectionPort source] ne $sourceName} {$moduleName $theConnectionPort connect $sourceName};
 		 	} else { $this say "$sourceName is no valid source for $moduleName" }
 		 	
 	}
+	
 	return $returnedModule
+	
 }
 
 #switches the given module menu port remotely from $this ($this must have a corresponding port!)
@@ -59,18 +66,43 @@ $this proc setCorrespondingPort {module menuPort {menuIndex 0}} {
 }
 
 $this proc getToggleValuesAndSomethingWithIt {module1 module1Port module2 module2Port {portIndex 0}} {
-
+	global extractSurface1Name surfaceView1Name
+	global theExtractedSurfacesList
 	
 	for {set i 0} {$i < [$module1 $module1Port getNum]} {incr i} {
 	
 		if {[$module1 $module1Port getValue $i] == 1} {
-		
-			$module2 $module2Port setValueString $portIndex [$module1 $module1Port getLabel $i]
-			$module2 fire
+			
+			set theLabelOfModule1Port [$module1 $module1Port getLabel $i]
+			
+			$module2 $module2Port setValueString $portIndex $theLabelOfModule1Port
+			$module2 fire;#essential: all downStreamConnections must be updated!
 			$module2 buffer setValue 0;#add to buffer (hit add button)
-			$module2 fire
+			$module2 compute
+			
+			#here happens the extraction of the surfaces:
+			$this createModuleAndConnectIfOkToSource HxViewBaseExtract $extractSurface1Name $surfaceView1Name
+			$extractSurface1Name action setValue 0
+			$extractSurface1Name fire
+			
+			set newExtractedSurface [[lindex [$extractSurface1Name downStreamConnections] 0 0] setLabel "$theLabelOfModule1Port.surf"]
+			lappend theExtractedSurfacesList $newExtractedSurface;#collecting all surfaces in theExtractedSurfacesList list
+			$newExtractedSurface master disconnect;#otherwise the newly created surface gets overriden in the next for loop iteration
+			$newExtractedSurface recompute
+			$newExtractedSurface cleanup
+			$newExtractedSurface compute
+			$module2 buffer setValue 2;#remove from buffer (hit remove button)
+			$module2 compute
+			
 		}
 		
+	}
+	
+	$module2 buffer setValue 1;#only get rid of the last selection in buffer which would otherwise be visible in the viewer
+	$module2 compute
+	
+	foreach i $theExtractedSurfacesList {
+		echo "ok geht: $i"
 	}
 	
 }
@@ -81,6 +113,8 @@ $this proc getToggleValuesAndSomethingWithIt {module1 module1Port module2 module
 $this proc constructor {} {
 
 	$this sayHello
+	
+	$this select
 	
 	#creates Smoothing menu port and formats it
 	$this newPortMultiMenu smoothing 3
@@ -164,7 +198,7 @@ $this proc compute {} {
 
 	if {[$this VolumeSet1PortCon isNew] == 0} {#if $this has no new port connection
 		
-		if {[$this action getValue] == 0 && $myVolumeSet1Source != ""} {# start calculation when action button is pressed and $this has a valid source
+		if {[$this action getValue] == 0 && $myVolumeSet1Source ne ""} {# start calculation when action button is pressed and $this has a valid source
 		
 			workArea setProgressInfo "starting calculation"
 			workArea setProgressValue 0.4
@@ -184,8 +218,6 @@ $this proc compute {} {
 			$surfaceView1Name compute
 			$this getToggleValuesAndSomethingWithIt $this MatVolSet1 $surfaceView1Name materials 1;#sets the buffer in SurfaceView to user specified toggles
 			
-			$this createModuleAndConnectIfOkToSource HxViewBaseExtract $extractSurface1Name $surfaceView1Name
-			
 			workArea setProgressValue 1
 			workArea setProgressInfo "$moduleName finished"
 
@@ -195,7 +227,7 @@ $this proc compute {} {
 	
 		workArea setProgressValue 0.0
 	
-		if {$myVolumeSet1Source == ""} {#if $this got disconnected
+		if {$myVolumeSet1Source eq ""} {#if $this got disconnected
 			$this deletePort MatVolSet1
 			$this say "no module connected to VolumeSet1PortCon connection port"
 		} else {# $this is newly connected
@@ -232,7 +264,7 @@ $this proc compute {} {
 			#nothing should happen here
 	} else {
 		
-		if {$myVolumeSet2Source == ""} {
+		if {$myVolumeSet2Source eq ""} {
 			$this deletePort MatVolSet2
 			$this say "no module connected to VolumeSet1PortCon connection port"
 		} else {
@@ -257,7 +289,7 @@ $this proc compute {} {
 	
 	
 	
-	if {$myButtonNone1WasHit == 1 && $myVolumeSet1Source != ""} {
+	if {$myButtonNone1WasHit == 1 && $myVolumeSet1Source ne ""} {
 	
 		for {set i 0} {$i <= [$this MatVolSet1 getNum]} {incr i} {
 			$this MatVolSet1 setValue $i 0
@@ -265,14 +297,14 @@ $this proc compute {} {
 		$this say "Button \"None\" pressed"
 		
 	}
-	if {$myButtonAll1WasHit == 1 && $myVolumeSet1Source != ""} {
+	if {$myButtonAll1WasHit == 1 && $myVolumeSet1Source ne ""} {
 		for {set i 0} {$i <= [$this MatVolSet1 getNum]} {incr i} {
 			$this MatVolSet1 setValue $i 1
 		}
 		$this say "Button \"All\" pressed"
 	}
 	
-	if {$myButtonNone2WasHit == 1 && $myVolumeSet2Source != ""} {
+	if {$myButtonNone2WasHit == 1 && $myVolumeSet2Source ne ""} {
 	
 		for {set i 0} {$i <= [$this MatVolSet2 getNum]} {incr i} {
 			$this MatVolSet2 setValue $i 0
@@ -280,7 +312,7 @@ $this proc compute {} {
 		$this say "Button \"None\" pressed"
 		
 	}
-	if {$myButtonAll2WasHit == 1 && $myVolumeSet2Source != ""} {
+	if {$myButtonAll2WasHit == 1 && $myVolumeSet2Source ne ""} {
 		for {set i 0} {$i <= [$this MatVolSet2 getNum]} {incr i} {
 			$this MatVolSet2 setValue $i 1
 		}
