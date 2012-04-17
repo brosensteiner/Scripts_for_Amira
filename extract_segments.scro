@@ -6,6 +6,11 @@ $this setVar runCounter 0
 set theExtractedSurfacesList {};#this list keeps track of surfaces of the current run
 set theCompleteExtractedSurfacesList {};#this list keeps track of all extracted surfaces from all runs
 
+set myMaterialsList1 [list]
+set myMaterialsList2 [list]
+set myMaterialCount1 0
+set myMaterialCount2 0
+
 #i dont´t want name clashes with user given names for modules so here are the hopefully cryptic enough generated names for the needed but hidden modules
 set surfaceGen1Modul XxXSurfaceGen1_${moduleName}
 set surfaceGen2Modul XxXSurfaceGen2_${moduleName}
@@ -119,19 +124,26 @@ $this proc getToggleValuesAndSomethingWithIt {module1 module1Port module2 module
 		
 	}
 	
-	set theCompleteExtractedSurfacesList [concat $theCompleteExtractedSurfacesList $theExtractedSurfacesList];#save all generated surfaces in theCompleteExtractedSurfacesList list
-	
-	$module2 buffer setValue 1;#only get rid of the last selection in buffer which would otherwise be visible in the viewer
-	$module2 compute
-	
-	#in this foreach iteration the surfaces in the theExtractedSurfacesList list will be further processed
-	foreach theSurface $theExtractedSurfacesList {
+	if {$theExtractedSurfacesList eq [list]} {#if list is empty echo warning, else process
+		$this say "no labels for extraction selected"
+		} else {
 		
-		$this createModuleAndConnectIfOkToSource HxAlignPrincipalAxes $alignPrincipalAxesModul $theSurface
-		$alignPrincipalAxesModul action setValue 0
-		$alignPrincipalAxesModul fire
+			lset theCompleteExtractedSurfacesList [concat $theCompleteExtractedSurfacesList $theExtractedSurfacesList];#save all generated surfaces in theCompleteExtractedSurfacesList list
+			
+			$module2 buffer setValue 1;#only get rid of the last selection in buffer which would otherwise be visible in the viewer
+			$module2 compute
+			
+			#in this foreach iteration the surfaces in the theExtractedSurfacesList list will be further processed
+			foreach theSurface $theExtractedSurfacesList {
+				
+				$this createModuleAndConnectIfOkToSource HxAlignPrincipalAxes $alignPrincipalAxesModul $theSurface
+				$alignPrincipalAxesModul action setValue 0
+				$alignPrincipalAxesModul fire
+				
+			}
 		
-	}
+		}
+	
 	remove $alignPrincipalAxesModul;#AlignPrincipalAxes module is not needed any more.
 		
 }
@@ -141,7 +153,6 @@ $this proc getToggleValuesAndSomethingWithIt {module1 module1Port module2 module
  
 $this proc constructor {} {
 
-	$this testBreak;#for safety...
 	$this sayHello
 	$this select;#$this should be selected after loading
 
@@ -173,10 +184,8 @@ $this proc constructor {} {
 	$this VolumeSet2PortCon setLabel "VolumeSet 2"
 	
 
-	#$this deletePort Data;#shit, can not be deleted hmm...
+	#$this deletePort data;#shit, can not be deleted hmm...
 	
-	set hideNewModules 1
-
 }
   
    
@@ -193,11 +202,16 @@ $this proc savePreparation {datadir savingFlags} {
   
   
 $this proc compute {} {
+
+	workArea startWorking  "Stop"
+	$this testBreak;#for safety...
+	
 	global moduleName surfaceGen1Modul surfaceGen2Modul
 	global surfaceView1Modul surfaceView2Modul
 	global extractSurface1Modul extractSurface2Modul
 	global theExtractedSurfacesList theCompleteExtractedSurfacesList
 	global alignPrincipalAxesModul arythmeticModul
+	global myMaterialsList1 myMaterialsList2 myMaterialCount1 myMaterialCount2
 
 	#some status checks for testing in if blocks:
 	
@@ -208,6 +222,10 @@ $this proc compute {} {
 	set myPolygonSurfaceToggleIsChecked [$this result getValue 1]
 	set myVoxelDataToggleIsChecked [$this result getValue 2]
 	set myResampleZToggleIsChecked [$this result getValue 3]
+	
+	set resultSelectionState [$this result getState]
+	
+	
 	
 	if {[lsearch [$this allPorts] SelectMatVolSet1] != -1} {#tests if bottons are in gui and run code when not
 	
@@ -225,6 +243,8 @@ $this proc compute {} {
 				$this MatVolSet1 setValue $i 1
 			}
 		}
+		
+		set labelSelection1State [$this MatVolSet1 getState];#state of te selected labels
 		
 	}
 	if {[lsearch [$this allPorts] SelectMatVolSet2] != -1} {#tests if bottons are in gui and run code when not
@@ -244,10 +264,12 @@ $this proc compute {} {
 			}
 		}
 		
+		set labelSelection2State [$this MatVolSet2 getState];#state of te selected labels
+		
 	}
 	
 	#the following if/elsif statements construct most of the gui when user checks the toggles
-	if {[lsearch [$this allPorts] smoothing] == -1 && [$this result getValue 1] == 1} {#"polygon surface" is checked
+	if {[lsearch [$this allPorts] smoothing] == -1 && $myPolygonSurfaceToggleIsChecked == 1} {#"polygon surface" is checked
 			
 		$this newPortSeparator separator1
 		
@@ -276,7 +298,7 @@ $this proc compute {} {
 		$this newPortSeparator separator2
 		
 				
-	} elseif {[$this result getValue 1] == 0} {#"polygon surface" is not checked
+	} elseif {$myPolygonSurfaceToggleIsChecked == 0} {#"polygon surface" is not checked
 		$this deletePort smoothing
 		$this deletePort SmoothingSliderPort1
 		$this deletePort options
@@ -284,7 +306,7 @@ $this proc compute {} {
 		$this deletePort separator2
 		
 	}
-	if {[$this result getValue 2] == 1} {#"voxel data" is checked
+	if {$myVoxelDataToggleIsChecked == 1} {#"voxel data" is checked
 			
 		$this newPortSeparator separator3
 		
@@ -293,13 +315,13 @@ $this proc compute {} {
 		$this newPortSeparator separator4
 		
 				
-	} elseif {[$this result getValue 2] == 0} {#"voxel data" is not checked
+	} elseif {$myVoxelDataToggleIsChecked == 0} {#"voxel data" is not checked
 		#TODO: here comes code when "voxel data" is not checked
 		$this deletePort separator3
 		$this deletePort separator4
 		
 	}
-	if {[$this result getValue 3] == 1} {#"resample z" is checked
+	if {$myResampleZToggleIsChecked == 1} {#"resample z" is checked
 			
 		$this newPortSeparator separator5
 		
@@ -308,7 +330,7 @@ $this proc compute {} {
 		$this newPortSeparator separator6
 		
 				
-	} elseif {[$this result getValue 3] == 0} {#"resample z" is not checked
+	} elseif {$myResampleZToggleIsChecked == 0} {#"resample z" is not checked
 		#TODO: here comes code when "resample z" is not checked
 		$this deletePort separator5
 		$this deletePort separator6
@@ -332,10 +354,11 @@ $this proc compute {} {
 				foreach i $theCompleteExtractedSurfacesList {
 					remove $i
 				}
-				set theCompleteExtractedSurfacesList {};#delete all list elements;#update the theExtractedSurfacesList list -> removes elements
+				lset theCompleteExtractedSurfacesList [list];#delete all list elements;#update the theExtractedSurfacesList list -> removes elements
 				$this say "*** old results overwritten ***"
 				
 			}
+			
 			if {$myPolygonSurfaceToggleIsChecked == 1} {
 			
 				$this createModuleAndConnectIfOkToSource HxGMC $surfaceGen1Modul $volumeSet1LabelSource;
@@ -344,10 +367,11 @@ $this proc compute {} {
 			
 				$surfaceGen1Modul setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];#SmoothKernelSize is a internal variable which i will allow to set by user in gui
 				
+				#sets corresponding gui from $this for the SurfaceGen module:
 				$this setCorrespondingPort surfaceGen1Modul options 0;
 				$this setCorrespondingPort surfaceGen1Modul options 1;
-				$this setCorrespondingPort surfaceGen1Modul smoothing;#sets gui smoothing port for the hidden SurfaceGen module
-				
+				$this setCorrespondingPort surfaceGen1Modul smoothing;
+								
 				$surfaceGen1Modul action setValue 0;#calculate the polygon surface
 				
 				$surfaceGen1Modul fire
@@ -362,15 +386,21 @@ $this proc compute {} {
 				
 			}
 			if {$myVoxelDataToggleIsChecked == 1} {
-				$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul $volumeSet1LabelSource;#connect a Arithmetic module to the label field				
+			
+				$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul $volumeSet1LabelSource;#connect a Arithmetic module to the label field
+				
+				for {set i 0} {$i < [$module1 $module1Port getNum]} {incr i} {
+				
+					$arythmeticModul expr setValue "\(A*\(B==[$volumeSet1LabelSource parameters Materials bundle]\)\)"
+					
+				}				
+							
 			}
 			if {$myResampleZToggleIsChecked == 1} {
 				
-			}			
-			
-			workArea setProgressValue 1
-			workArea setProgressInfo "$moduleName finished \(run [$this getVar runCounter]\)"
-
+			}
+						
+					   
 		}
 				
 	} else {#initialization of SurfaceGen (connecting, setting variables, gui ...)
@@ -398,6 +428,7 @@ $this proc compute {} {
 			$this newPortToggleList MatVolSet1 $myMaterialCount1
 			$this MatVolSet1 setLabel "Mat. Volume Set 1"
 			
+			#this loop sets the labels for each toggle in MatVolSet port:
 			for {set i 0} {$i <= [$this MatVolSet1 getNum]} {incr i} {
 				$this MatVolSet1 setLabel $i [lindex $myMaterialsList1 $i]
 			}
@@ -439,8 +470,17 @@ $this proc compute {} {
 			
 	}
 	
-	
-	
+	#completion:
+	if {$volumeSet1LabelSource eq "" && $volumeSet2LabelSource eq "" && [$this getVar runCounter] > 0} {
+			$this say "nothing to process - no labelfile connected"
+		}
+	if {[lrange $resultSelectionState 3 5] eq [list 0 0 0] && [$this getVar runCounter] > 0} {
+			$this say "nothing to process - choose on ore more result options"
+		}
+		
+	$this fire
+	workArea setProgressValue 1
+	workArea stopWorking
 }
   
   
