@@ -43,8 +43,8 @@ $this proc checkModuleStateAndSetVariables {} {
 	
 	$this fire
 	
-	set volumeSet1LabelSource [$this VolumeSet1PortCon source]
-	set volumeSet2LabelSource [$this VolumeSet2PortCon source]
+	set volumeSet1LabelSource [$this labField1PortCon source]
+	set volumeSet2LabelSource [$this labField2PortCon source]
 	
 	if {$volumeSet1LabelSource ne ""} {
 		set myMaterialsList1  [$volumeSet1LabelSource parameters Materials list]
@@ -173,10 +173,9 @@ $this proc getToggleValuesAndCreateSurfaces {module1 module1Port module2 module2
 	remove $alignPrincipalAxesModul;#AlignPrincipalAxes module is not needed any more.
 		
 }
-
-
-
- 
+#
+#******************** the script loopts ********************
+#
 $this proc constructor {} {
 	global volumeSet1LabelSource volumeSet2LabelSource
 	global myMaterialsList1 myMaterialsList2 myMaterialCount1 myMaterialCount2
@@ -186,10 +185,10 @@ $this proc constructor {} {
 	$this select;#$this should be selected after loading
 	
 	#creates new port connections that can connect to HxUniformLabelField3 data class:
-	$this newPortConnection VolumeSet1PortCon HxUniformLabelField3
-	$this VolumeSet1PortCon setLabel "VolumeSet 1"
-	$this newPortConnection VolumeSet2PortCon HxUniformLabelField3
-	$this VolumeSet2PortCon setLabel "VolumeSet 2"
+	$this newPortConnection labField1PortCon HxUniformLabelField3
+	$this labField1PortCon setLabel "Label Field 1"
+	$this newPortConnection labField2PortCon HxUniformLabelField3
+	$this labField2PortCon setLabel "Label Field 2"
 	
 	#creates options for choosing which result will be produced
 	$this newPortToggleList result 4
@@ -240,7 +239,7 @@ $this proc constructor {} {
 	}
 	
 	
-	if {$volumeSet1LabelSource eq ""} {#if $this VolumeSet1PortCon is not connected to label field
+	if {$volumeSet1LabelSource eq ""} {#if $this labField1PortCon is not connected to label field
 		$this materialSeparator1 hide
 		$this MatVolSet1 hide
 		$this SelectMatVolSet1 hide
@@ -248,7 +247,7 @@ $this proc constructor {} {
 		$this say "Materials in volume set 1: $myMaterialCount1"
 	}
 	
-	if {$volumeSet2LabelSource eq ""} {#if $this VolumeSet2PortCon is not connected to label field
+	if {$volumeSet2LabelSource eq ""} {#if $this labField2PortCon is not connected to label field
 		$this materialSeparator2 hide
 		$this MatVolSet2 hide
 		$this SelectMatVolSet2 hide
@@ -257,7 +256,6 @@ $this proc constructor {} {
 	}
 	
 			
-	
 	#creates smoothing options:
 	$this newPortSeparator smoothingSeparator
 	$this newPortMultiMenu smoothing 3
@@ -301,6 +299,18 @@ $this proc constructor {} {
    
 $this proc destructor {} {
 
+	global surfaceGen1Modul surfaceGen2Modul arythmeticModul
+	global surfaceView1Modul surfaceView2Modul extractSurface1Modul extractSurface2Modul
+
+	#removes the modules which the script created:
+	if {[lsearch [all] $surfaceGen1Modul] != -1} { remove $surfaceGen1Modul }
+	if {[lsearch [all] $surfaceGen2Modul] != -1} { remove $surfaceGen2Modul }
+	if {[lsearch [all] $surfaceView1Modul] != -1} { remove $surfaceView1Modul }
+	if {[lsearch [all] $surfaceView2Modul] != -1} { remove $surfaceView2Modul }
+	if {[lsearch [all] $extractSurface1Modul] != -1} { remove $extractSurface1Modul }
+	if {[lsearch [all] $extractSurface2Modul] != -1} { remove $extractSurface2Modul }
+	if {[lsearch [all] $arythmeticModul] != -1} { remove $arythmeticModul }
+	
 	set hideNewModules 0
 	
 }
@@ -363,43 +373,30 @@ $this proc compute {} {
 	set labelSelection2State [$this MatVolSet2 getState];#state of te selected labels
 	
 
-	#constructs myMaterialsListSelections list {label0 bundleindex0 label1 bundelindex1 label0 bundleindex_n label1 bundelindex_n ...}
-	#and sets the correct number of toggles
-	if {[$this VolumeSet1PortCon isNew] == 1} {
+	#sif connections are new, construct the new gui (toggles with corresponding labels)
+	if {[$this labField1PortCon isNew] == 1} {
 		
 		$this MatVolSet1 setNum $myMaterialCount1
 				
 		#this loop sets the labels for each toggle in MatVolSet1 port:
-		for {set i 0} {$i <= [$this MatVolSet1 getNum]} {incr i} {
+		for {set i 0} {$i <= $myMaterialCount1} {incr i} {
 			$this MatVolSet1 setLabel $i [lindex $myMaterialsList1 $i]
-		}
-	
-		lset userMaterialsList1Selection [list]
-		for {set i 0} {$i < [$this MatVolSet1 getNum]} {incr i} {
-			if {[$this MatVolSet1 getValue $i] == 1} { lappend userMaterialsList1Selection "[$this MatVolSet1 getLabel $i] $i" }
-				
 		}		
 		
 	} else { $this MatVolSet1 hide }
-	
-	if {[$this VolumeSet2PortCon isNew] == 1} {
+	if {[$this labField2PortCon isNew] == 1} {
 
 		$this MatVolSet2 setNum $myMaterialCount2
 	
 		#this loop sets the labels for each toggle in MatVolSet2 port:
-		for {set i 0} {$i <= [$this MatVolSet2 getNum]} {incr i} {
+		for {set i 0} {$i <= $myMaterialCount2} {incr i} {
 			$this MatVolSet2 setLabel $i [lindex $myMaterialsList2 $i]
 		}
-	
-		lset userMaterialsList2Selection [list]
-		for {set i 0} {$i < [$this MatVolSet2 getNum]} {incr i} {
-			if {[$this MatVolSet2 getValue $i] == 1} { lappend userMaterialsList2Selection "[$this MatVolSet2 getLabel $i] $i" }
-		}
-		
+			
 	} else { $this MatVolSet2 hide }
 	
 	#the following if/elsif statements construct most of the gui when user checks the toggles or connects modules
-	if {$volumeSet1LabelSource ne ""} {#if $this VolumeSet1PortCon is connected to label field
+	if {$volumeSet1LabelSource ne ""} {#if $this labField1PortCon is connected to label field
 		$this materialSeparator1 show
 		$this MatVolSet1 show
 		$this SelectMatVolSet1 show
@@ -409,7 +406,7 @@ $this proc compute {} {
 		$this SelectMatVolSet1 hide
 	}
 	
-	if {$volumeSet2LabelSource ne ""} {#if $this VolumeSet2PortCon is connected to label field
+	if {$volumeSet2LabelSource ne ""} {#if $this labField2PortCon is connected to label field
 		$this materialSeparator2 show
 		$this MatVolSet2 show
 		$this SelectMatVolSet2 show
@@ -465,11 +462,17 @@ $this proc compute {} {
 	
 	if {[$this action getValue] == 0 && $volumeSet1LabelSource ne ""} {#start calculation when action button is pressed and $this has a valid source
 	
-	
 		$this setVar runCounter [expr [$this getVar runCounter] + 1];#sets the new runCounter + 1
 		$this say "run [$this getVar runCounter]"
 		workArea setProgressInfo "starting calculation"
 		workArea setProgressValue 0.4
+		
+		#check which label the user hast selected and save in userMaterialsList1Selection list
+		lset userMaterialsList1Selection [list]
+		for {set i 0} {$i < [$this MatVolSet1 getNum]} {incr i} {
+			if {[$this MatVolSet1 getValue $i] == 1} { lappend userMaterialsList1Selection "[$this MatVolSet1 getLabel $i] $i" }
+				
+		}
 		
 		if {$myOverwriteToggleIsChecked == 1 && $theCompleteExtractedSurfacesList ne [list]} {#if toggle is set and list is not empty
 		
@@ -507,32 +510,34 @@ $this proc compute {} {
 			$this getToggleValuesAndCreateSurfaces $this MatVolSet1 $surfaceView1Modul materials 1;#runs main code
 			
 		}
+		
 		if {$myVoxelDataToggleIsChecked == 1} {
 			
 			$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$volumeSet1LabelSource ImageData source];#connect a Arithmetic module to the voxelfield which connects to the labelfield
 			$arythmeticModul inputB connect $volumeSet1LabelSource
 			
+			
 			for {set i 0} {$i < [llength $userMaterialsList1Selection]} {incr i} {
 			
-					$this testBreak;#calculation here will take long
+				$this testBreak;#maybe calculation here will take long
+				
+				$arythmeticModul expr setValue "\(A*\(B==[lindex $userMaterialsList1Selection $i 1]\)\)";#sets the extraction expression
+				$arythmeticModul doIt setValue 0;
+				$arythmeticModul fire
+
+				set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[lindex $userMaterialsList1Selection $i 0]"];#sets label for newly created voxelfield
+				$theResultFromArithmeticCalcName master disconnect;#sisconnect, otherwise the result from arithmetic module will be overridden
 					
-					$arythmeticModul expr setValue "\(A*\(B==[lindex $userMaterialsList1Selection $i 1]\)\)";#sets the extraction expression
-					$arythmeticModul doIt setValue 0;
-					$arythmeticModul fire
-					set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[lindex $userMaterialsList1Selection $i 0]"];#sets label for newly created voxelfield
-					$theResultFromArithmeticCalcName master disconnect;#sisconnect, otherwise the result from arithmetic module will be overridden
-					
-					lappend theCompleteExtractedSurfacesList $theResultFromArithmeticCalcName;#append extracted voxel field to global theCompleteExtractedSurfacesList
+				lappend theCompleteExtractedSurfacesList $theResultFromArithmeticCalcName;#append extracted voxel field to global theCompleteExtractedSurfacesList
 					
 			}
 						
-						
 		}
+		
 		if {$myResampleZToggleIsChecked == 1} {
 			
 		}
 					
-				   
 	}
 
 	
