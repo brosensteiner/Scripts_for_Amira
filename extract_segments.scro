@@ -2,27 +2,29 @@
 
 set moduleName [string map {"\.scro" ""} $this]
 
+#definition of global variables:
 $this setVar runCounter 0
-set theExtractedSurfacesList {};#this list keeps track of surfaces of the current run
-set theCompleteExtractedSurfacesList {};#this list keeps track of all extracted surfaces from all runs
+set theExtractedSurfacesList [list];#keeps track of surfaces of the current run
+set theArithmeticExtractedSurfacesList [list];#keeps track of all extracted surfaces from arithmetic runs
+set theResampleZExtractedSurfacesList [list];#keeps track of all extracted surfaces from resample z runs
+set theCompleteExtractedSurfacesList [list];#keeps track of all extracted surfaces from all runs
 
 set myMaterialsList1 [list]
 set myMaterialsList2 [list]
-set userMaterialsList1Selection [list]
-set userMaterialsList2Selection [list]
+set userLabelListSelection1 [list]
+set userLabelListSelection2 [list]
 set myMaterialCount1 0
 set myMaterialCount2 0
 set volumeSet1LabelSource ""
 set volumeSet2LabelSource ""
 
-#i dont´t want name clashes with user given names for modules so here are the hopefully cryptic enough generated names for the needed but hidden modules
+#i dont´t want name clashes with user given names for modules so here are the hopefully cryptic enough generated names for the modules $this maybe creates
 set surfaceGen1Modul XxXSurfaceGen1_${moduleName}
 set surfaceGen2Modul XxXSurfaceGen2_${moduleName}
 set surfaceView1Modul XxXSurfaceView1_${moduleName}
 set surfaceView2Modul XxXSurfaceView2_${moduleName}
 set extractSurface1Modul XxXextractSurface1_${moduleName}
 set extractSurface2Modul XxXextractSurface2_${moduleName}
-
 set alignPrincipalAxesModul XxXalignPrincipalAxes_${moduleName}
 set arythmeticModul XxXArithmetic_${moduleName}
 
@@ -115,7 +117,7 @@ $this proc getToggleValuesAndCreateSurfaces {module1 module1Port module2 module2
 	global theExtractedSurfacesList theCompleteExtractedSurfacesList
 	global alignPrincipalAxesModul arythmeticModul
 	
-	set theExtractedSurfacesList {}
+	set theExtractedSurfacesList [list]
 	
 	for {set i 0} {$i < [$module1 $module1Port getNum]} {incr i} {
 	
@@ -174,7 +176,7 @@ $this proc getToggleValuesAndCreateSurfaces {module1 module1Port module2 module2
 		
 }
 #
-#******************** the script loopts ********************
+#******************** the script loops ********************
 #
 $this proc constructor {} {
 	global volumeSet1LabelSource volumeSet2LabelSource
@@ -213,44 +215,44 @@ $this proc constructor {} {
 	
 	#creates gui for material selection toggles:
 	$this newPortSeparator materialSeparator1
-	$this newPortButtonList SelectMatVolSet1 2
-	$this SelectMatVolSet1 setLabel "Select Mat. Volume Set 1"
-	$this SelectMatVolSet1 setLabel 0 "None"
-	$this SelectMatVolSet1 setLabel 1 "All"
-	$this newPortToggleList MatVolSet1 $myMaterialCount1
-	$this MatVolSet1 setLabel "Mat. Volume Set 1"
+	$this newPortButtonList SelectLabSet1 2
+	$this SelectLabSet1 setLabel "Select label set 1"
+	$this SelectLabSet1 setLabel 0 "None"
+	$this SelectLabSet1 setLabel 1 "All"
+	$this newPortToggleList LabSet1 $myMaterialCount1
+	$this LabSet1 setLabel "Label set 1"
 	
-	#this loop sets the labels for each toggle in MatVolSet1 port:
-	for {set i 0} {$i <= [$this MatVolSet1 getNum]} {incr i} {
-		$this MatVolSet1 setLabel $i [lindex $myMaterialsList1 $i]
+	#this loop sets the labels for each toggle in LabSet1 port:
+	for {set i 0} {$i <= [$this LabSet1 getNum]} {incr i} {
+		$this LabSet1 setLabel $i [lindex $myMaterialsList1 $i]
 	}
 	
 	$this newPortSeparator materialSeparator2
-	$this newPortButtonList SelectMatVolSet2 2
-	$this SelectMatVolSet2 setLabel "Select Mat. Volume Set 2"
-	$this SelectMatVolSet2 setLabel 0 "None"
-	$this SelectMatVolSet2 setLabel 1 "All"
-	$this newPortToggleList MatVolSet2 $myMaterialCount2
-	$this MatVolSet2 setLabel "Mat. Volume Set 2"
+	$this newPortButtonList SelectLabSet2 2
+	$this SelectLabSet2 setLabel "Select lablel set 2"
+	$this SelectLabSet2 setLabel 0 "None"
+	$this SelectLabSet2 setLabel 1 "All"
+	$this newPortToggleList LabSet2 $myMaterialCount2
+	$this LabSet2 setLabel "Label set 2"
 	
-	#this loop sets the labels for each toggle in MatVolSet2 port:
-	for {set i 0} {$i <= [$this MatVolSet2 getNum]} {incr i} {
-		$this MatVolSet2 setLabel $i [lindex $myMaterialsList2 $i]
+	#this loop sets the labels for each toggle in LabSet2 port:
+	for {set i 0} {$i <= [$this LabSet2 getNum]} {incr i} {
+		$this LabSet2 setLabel $i [lindex $myMaterialsList2 $i]
 	}
 	
 	
 	if {$volumeSet1LabelSource eq ""} {#if $this labField1PortCon is not connected to label field
 		$this materialSeparator1 hide
-		$this MatVolSet1 hide
-		$this SelectMatVolSet1 hide
+		$this LabSet1 hide
+		$this SelectLabSet1 hide
 	} else {
 		$this say "Materials in volume set 1: $myMaterialCount1"
 	}
 	
 	if {$volumeSet2LabelSource eq ""} {#if $this labField2PortCon is not connected to label field
 		$this materialSeparator2 hide
-		$this MatVolSet2 hide
-		$this SelectMatVolSet2 hide
+		$this LabSet2 hide
+		$this SelectLabSet2 hide
 	} else {
 		$this say "Materials in volume set 2: $myMaterialCount2"
 	}
@@ -280,11 +282,13 @@ $this proc constructor {} {
 	
 	#recreates the options port from Arithmetic
 	$this newPortSeparator voxelSeparator
-	$this newPortButtonList voxelBottons 2
+	$this newPortToggleList voxelOptions 2
+	$this voxelOptions setLabel "Extraction options"
 	
 	#creates resample z options
 	$this newPortSeparator resampleSeparator
-	$this newPortButtonList resampleButtons 2
+	$this newPortToggleList resampleOptions 2
+	$this resampleOptions setLabel "Resample options"
 	
 	
 	if {$volumeSet1LabelSource eq "" && $volumeSet2LabelSource eq ""} {
@@ -302,7 +306,7 @@ $this proc destructor {} {
 	global surfaceGen1Modul surfaceGen2Modul arythmeticModul
 	global surfaceView1Modul surfaceView2Modul extractSurface1Modul extractSurface2Modul
 
-	#removes the modules which the script created:
+	#removes the modules which the script eventually created when $this gets deleted:
 	if {[lsearch [all] $surfaceGen1Modul] != -1} { remove $surfaceGen1Modul }
 	if {[lsearch [all] $surfaceGen2Modul] != -1} { remove $surfaceGen2Modul }
 	if {[lsearch [all] $surfaceView1Modul] != -1} { remove $surfaceView1Modul }
@@ -317,15 +321,14 @@ $this proc destructor {} {
 
 $this proc compute {} {
 
-	workArea startWorking  "Stop"
 	$this testBreak;#for safety...
 	
 	global moduleName surfaceGen1Modul surfaceGen2Modul
 	global surfaceView1Modul surfaceView2Modul
 	global extractSurface1Modul extractSurface2Modul
-	global theExtractedSurfacesList theCompleteExtractedSurfacesList
+	global theExtractedSurfacesList theCompleteExtractedSurfacesList theArithmeticExtractedSurfacesList theResampleZExtractedSurfacesList
 	global alignPrincipalAxesModul arythmeticModul
-	global userMaterialsList1Selection userMaterialsList2Selection
+	global userLabelListSelection1 userLabelListSelection2
 	global volumeSet1LabelSource volumeSet2LabelSource
 	global myMaterialsList1 myMaterialsList2 myMaterialCount1 myMaterialCount2
 
@@ -342,78 +345,78 @@ $this proc compute {} {
 	
 	
 	#checks the bottons states from "None" and "All" and executes their action:
-	set myButtonNone1WasHit [$this SelectMatVolSet1 wasHit 0]
-	set myButtonAll1WasHit [$this SelectMatVolSet1 wasHit 1]
-	set myButtonNone2WasHit [$this SelectMatVolSet2 wasHit 0]
-	set myButtonAll2WasHit [$this SelectMatVolSet2 wasHit 1]
+	set myButtonNone1WasHit [$this SelectLabSet1 wasHit 0]
+	set myButtonAll1WasHit [$this SelectLabSet1 wasHit 1]
+	set myButtonNone2WasHit [$this SelectLabSet2 wasHit 0]
+	set myButtonAll2WasHit [$this SelectLabSet2 wasHit 1]
 	
 	#check if buttons are pressed and set toggles
 	if {$myButtonNone1WasHit == 1 && $volumeSet1LabelSource ne ""} {
-		for {set i 0} {$i <= [$this MatVolSet1 getNum]} {incr i} {
-			$this MatVolSet1 setValue $i 0
+		for {set i 0} {$i <= [$this LabSet1 getNum]} {incr i} {
+			$this LabSet1 setValue $i 0
 		}
 	}
 	if {$myButtonAll1WasHit == 1 && $volumeSet1LabelSource ne ""} {
-		for {set i 0} {$i <= [$this MatVolSet1 getNum]} {incr i} {
-			$this MatVolSet1 setValue $i 1
+		for {set i 0} {$i <= [$this LabSet1 getNum]} {incr i} {
+			$this LabSet1 setValue $i 1
 		}
 	}
-	set labelSelection1State [$this MatVolSet1 getState];#state of te selected labels
+	set labelSelection1State [$this LabSet1 getState];#state of te selected labels
 
 	if {$myButtonNone2WasHit == 1 && $volumeSet2LabelSource ne ""} {
-		for {set i 0} {$i <= [$this MatVolSet2 getNum]} {incr i} {
-			$this MatVolSet2 setValue $i 0
+		for {set i 0} {$i <= [$this LabSet2 getNum]} {incr i} {
+			$this LabSet2 setValue $i 0
 		}
 	}
 	if {$myButtonAll2WasHit == 1 && $volumeSet2LabelSource ne ""} {
-		for {set i 0} {$i <= [$this MatVolSet2 getNum]} {incr i} {
-			$this MatVolSet2 setValue $i 1
+		for {set i 0} {$i <= [$this LabSet2 getNum]} {incr i} {
+			$this LabSet2 setValue $i 1
 		}
 	}
-	set labelSelection2State [$this MatVolSet2 getState];#state of te selected labels
+	set labelSelection2State [$this LabSet2 getState];#state of te selected labels
 	
 
 	#sif connections are new, construct the new gui (toggles with corresponding labels)
 	if {[$this labField1PortCon isNew] == 1} {
 		
-		$this MatVolSet1 setNum $myMaterialCount1
+		$this LabSet1 setNum $myMaterialCount1
 				
-		#this loop sets the labels for each toggle in MatVolSet1 port:
+		#this loop sets the labels for each toggle in LabSet1 port:
 		for {set i 0} {$i <= $myMaterialCount1} {incr i} {
-			$this MatVolSet1 setLabel $i [lindex $myMaterialsList1 $i]
+			$this LabSet1 setLabel $i [lindex $myMaterialsList1 $i]
 		}		
 		
-	} else { $this MatVolSet1 hide }
+	} else { $this LabSet1 hide }
 	if {[$this labField2PortCon isNew] == 1} {
 
-		$this MatVolSet2 setNum $myMaterialCount2
+		$this LabSet2 setNum $myMaterialCount2
 	
-		#this loop sets the labels for each toggle in MatVolSet2 port:
+		#this loop sets the labels for each toggle in LabSet2 port:
 		for {set i 0} {$i <= $myMaterialCount2} {incr i} {
-			$this MatVolSet2 setLabel $i [lindex $myMaterialsList2 $i]
+			$this LabSet2 setLabel $i [lindex $myMaterialsList2 $i]
 		}
 			
-	} else { $this MatVolSet2 hide }
+	} else { $this LabSet2 hide }
 	
 	#the following if/elsif statements construct most of the gui when user checks the toggles or connects modules
 	if {$volumeSet1LabelSource ne ""} {#if $this labField1PortCon is connected to label field
 		$this materialSeparator1 show
-		$this MatVolSet1 show
-		$this SelectMatVolSet1 show
+		$this LabSet1 show
+		$this SelectLabSet1 show
 	} else {
 		$this materialSeparator1 hide
-		$this MatVolSet1 hide
-		$this SelectMatVolSet1 hide
+		$this LabSet1 hide
+		$this SelectLabSet1 hide
 	}
 	
 	if {$volumeSet2LabelSource ne ""} {#if $this labField2PortCon is connected to label field
 		$this materialSeparator2 show
-		$this MatVolSet2 show
-		$this SelectMatVolSet2 show
+		$this LabSet2 show
+		$this SelectLabSet2 show
 	} else {
 		$this materialSeparator2 hide
-		$this MatVolSet2 hide
-		$this SelectMatVolSet2 hide
+		$this LabSet2 hide
+		$this SelectLabSet2 hide
 	}
 	
 	if {$myPolygonSurfaceToggleIsChecked == 1} {#"polygon surface" is checked
@@ -435,25 +438,25 @@ $this proc compute {} {
 	if {$myVoxelDataToggleIsChecked == 1} {#"voxel data" is checked
 			
 		$this voxelSeparator show
-		$this voxelBottons show
+		$this voxelOptions show
 				
 				
 	} else {#"voxel data" is not checked
 		#TODO: here comes code when "voxel data" is not checked
 		$this voxelSeparator hide
-		$this voxelBottons hide
+		$this voxelOptions hide
 		
 	}
 	if {$myResampleZToggleIsChecked == 1} {#"resample z" is checked
 			
 		$this resampleSeparator show
-		$this resampleButtons show
+		$this resampleOptions show
 				
 	} else {#"resample z" is not checked
 		#TODO: here comes code when "resample z" is not checked
 		
 		$this resampleSeparator hide
-		$this resampleButtons hide
+		$this resampleOptions hide
 		
 	}
 	
@@ -462,16 +465,19 @@ $this proc compute {} {
 	
 	if {[$this action getValue] == 0 && $volumeSet1LabelSource ne ""} {#start calculation when action button is pressed and $this has a valid source
 	
+		workArea startWorking
+	
 		$this setVar runCounter [expr [$this getVar runCounter] + 1];#sets the new runCounter + 1
 		$this say "run [$this getVar runCounter]"
 		workArea setProgressInfo "starting calculation"
 		workArea setProgressValue 0.4
 		
-		#check which label the user hast selected and save in userMaterialsList1Selection list
-		lset userMaterialsList1Selection [list]
-		for {set i 0} {$i < [$this MatVolSet1 getNum]} {incr i} {
-			if {[$this MatVolSet1 getValue $i] == 1} { lappend userMaterialsList1Selection "[$this MatVolSet1 getLabel $i] $i" }
-				
+		#check which label the user hast selected and save in userLabelListSelection1 list (this list containes the label and the material bundle index)
+		lset userLabelListSelection1 [list]
+		for {set i 0} {$i < [$this LabSet1 getNum]} {incr i} {
+		
+			if {[$this LabSet1 getValue $i] == 1} { lappend userLabelListSelection1 "[$this LabSet1 getLabel $i] $i" }
+			
 		}
 		
 		if {$myOverwriteToggleIsChecked == 1 && $theCompleteExtractedSurfacesList ne [list]} {#if toggle is set and list is not empty
@@ -479,7 +485,7 @@ $this proc compute {} {
 			foreach i $theCompleteExtractedSurfacesList {
 				remove $i
 			}
-			lset theCompleteExtractedSurfacesList [list];#delete all list elements;#update the theExtractedSurfacesList list -> removes elements
+			lset theCompleteExtractedSurfacesList [list];#delete all list elements
 			$this say "old results overwritten"
 			
 		}
@@ -507,29 +513,32 @@ $this proc compute {} {
 			$surfaceView1Modul buffer setValue 2;#make shure buffer is empty (hits botton "clear"), before filling it again with getToggleValuesAndCreateSurfaces procedure
 			$surfaceView1Modul compute
 			
-			$this getToggleValuesAndCreateSurfaces $this MatVolSet1 $surfaceView1Modul materials 1;#runs main code
+			$this getToggleValuesAndCreateSurfaces $this LabSet1 $surfaceView1Modul materials 1;#runs main code
 			
 		}
 		
 		if {$myVoxelDataToggleIsChecked == 1} {
+		
+			lset theArithmeticExtractedSurfacesList [list]
 			
 			$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$volumeSet1LabelSource ImageData source];#connect a Arithmetic module to the voxelfield which connects to the labelfield
 			$arythmeticModul inputB connect $volumeSet1LabelSource
 			
 			
-			for {set i 0} {$i < [llength $userMaterialsList1Selection]} {incr i} {
+			for {set i 0} {$i < [llength $userLabelListSelection1]} {incr i} {
 			
 				$this testBreak;#maybe calculation here will take long
 				
-				$arythmeticModul expr setValue "\(A*\(B==[lindex $userMaterialsList1Selection $i 1]\)\)";#sets the extraction expression
+				$arythmeticModul expr setValue "\(A*\(B==[lindex $userLabelListSelection1 $i 1]\)\)";#sets the extraction expression
 				$arythmeticModul doIt setValue 0;
 				$arythmeticModul fire
 
-				set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[lindex $userMaterialsList1Selection $i 0]"];#sets label for newly created voxelfield
+				set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[lindex $userLabelListSelection1 $i 0]"];#sets label for newly created voxelfield
 				$theResultFromArithmeticCalcName master disconnect;#sisconnect, otherwise the result from arithmetic module will be overridden
-					
-				lappend theCompleteExtractedSurfacesList $theResultFromArithmeticCalcName;#append extracted voxel field to global theCompleteExtractedSurfacesList
-					
+				
+				#append extracted voxel field to global lists:
+				lappend theCompleteExtractedSurfacesList $theResultFromArithmeticCalcName;
+				lappend theArithmeticExtractedSurfacesList $theResultFromArithmeticCalcName;
 			}
 						
 		}
@@ -537,12 +546,13 @@ $this proc compute {} {
 		if {$myResampleZToggleIsChecked == 1} {
 			
 		}
+		
+		workArea setProgressValue 1
+		workArea stopWorking
 					
 	}
 
-	
-	
-	
+
 	#second port:
 
 	
@@ -555,8 +565,7 @@ $this proc compute {} {
 			$this say "nothing to process - choose on ore more result options"
 		}
 		
-	workArea setProgressValue 1
-	workArea stopWorking
+	
 }
   
   
