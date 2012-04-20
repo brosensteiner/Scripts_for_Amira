@@ -9,16 +9,13 @@ set theArithmeticExtractedSurfacesList [list];#keeps track of all extracted surf
 set theResampleZExtractedSurfacesList [list];#keeps track of all extracted surfaces from resample z runs
 set theCompleteExtractedSurfacesList [list];#keeps track of all extracted surfaces from all runs
 
-
-set userLabelListSelection1 [list]
-set userLabelListSelection2 [list]
-array set myMaterialsList  {1 ""}
-array set myMaterialCount  {1 ""}
-array set allConPorts  {1 ""}
-array set materialSeparator {1 ""}
-array set  LabSet {1 ""}
-array set  labSetButtons {1 ""}
-
+array set userLabelListSelection {}
+set labList [list]
+set labCountList [list]
+set allConnectedConPorts [list]
+set labSeparatorList [list]
+array set labSetArray {}
+set labSetButtonList [list]
 
 #i dont´t want name clashes with user given names for modules so here are the hopefully cryptic enough generated names for the modules $this maybe creates
 set surfaceGen1Modul XxXSurfaceGen1_${moduleName}
@@ -32,51 +29,74 @@ set arythmeticModul XxXArithmetic_${moduleName}
 
 $this proc sayHello {} {
 	global moduleName
-   echo "\n************ module \"$moduleName\" loaded successfully :) ************\n"
+	echo "\n************ module \"$moduleName\" loaded successfully :) ************\n"
 }
 $this proc say {something} {
 	global moduleName
 	echo "$moduleName: $something"
 }
 
+#simple port test: procedure returns 1 when modul has port, otherwise it returns 0
+$this proc hasPort {modul port} {
+
+	upvar #1 $modul myModule
+	
+	if {[lsearch [$myModule allPorts] $port] != -1} { return 1 } else { return 0 }
+	
+}
+
 #function which checks on some $this states and saves some typing:
 $this proc checkModuleStateAndSetVariables {} {
 
-	global allConPorts myMaterialsList myMaterialCount
-	global materialSeparator LabSet labSetButtons
-	#unset allConPorts myMaterialsList myMaterialCount
-	
+	global allConnectedConPorts labList labCountList
+	global labSeparatorList labSetArray userLabelListSelection labSetButtonList 
 	
 	$this fire
 	
-	for {set i 1} { $i < [llength [$this connectionPorts]] } {incr i} {
-		
-		$this say "connectionPorts [llength [$this connectionPorts]]"
-		
-		
-		
+	#first make all empty:
+	array set userLabelListSelection {}
+	array set labSetArray {}
+	set allConnectedConPorts [list]
+	set labList [list]
+	set labCountList [list]
+	set labSeparatorList [list]
+	set labSetButtonList [list]
+	
+	#and then fill it again:
+	for {set i 0} {$i < [llength [$this connectionPorts]]} {incr i} {
+	
+		if { [$this hasPort this labSet$i] == 1 } {
+			 	set userLabelListSelection($i) [$this labList$i getState]
+		}
+		if { [$this hasPort this labSet$i] == 1 } {
+			 set labSetArray($i) labSet$1
+		}
 		if {[$this [lindex [$this connectionPorts] $i] source] ne ""} {
-		
-			$this say "STATE new connected: [$this [lindex [$this connectionPorts] $i] source]\n"
-			
-			set allConPorts($i) [lindex [$this connectionPorts] $i]
-			set materialSeparator($i) materialSeparator$i
-			set LabSet($i) labSet$i
-			set labSetButtons($i) labSetButtons$i
-			
-			set myMaterialsList($i)  [[$this [lindex [$this connectionPorts] $i] source] parameters Materials list]
-			set myMaterialCount($i) [llength $myMaterialsList($i)]
-			
+			lappend allConnectedConPorts [$this [lindex [$this connectionPorts] $i] source]
+		}
+		if { [$this hasPort this labSet$i] == 1 } {
+			 lappend labList labSet$1
+		}
+		if { [$this hasPort this labSet$i] == 1 } {
+			 lappend labCountList [$this labSet$1 getNum]
+		}
+		if { [$this hasPort this labSeparator$i] == 1 } {
+			 lappend labSeparatorList labSeparator$i
+		}
+		if { [$this hasPort this labSetButton$i] == 1 } {
+			 lappend labSetButtonList labSetButton$i
 		}
 		
-		echo "\n********\n"
-		$this say "STATE array of myMaterialsList: [array get myMaterialsList]"
-		$this say "STATE array of myMaterialCount: [array get myMaterialCount]"
-		$this say "STATE array of allConPorts: [array get allConPorts]"
-		$this say "STATE array of materialSeparator: [array get materialSeparator]"
-		$this say "STATE array of LabSet: [array get LabSet]"
-		
 	}
+	
+	#printing:
+	$this say "userLabelListSelection: [array get userLabelListSelection]"
+	$this say "labSetArray: [array get labSetArray]"
+	$this say "allConnectedConPorts: $allConnectedConPorts"
+	$this say "labList: $labList"
+	$this say "labCountList: $labCountList"
+	$this say "labSeparatorList $labSeparatorList"
+	$this say "labSetButtonList: $labSetButtonList"
 	
 }
 
@@ -87,7 +107,7 @@ $this proc checkModuleStateAndSetVariables {} {
 $this proc createModuleAndConnectIfOkToSource {moduleType moduleName sourceName {conPortIndex 0}} {
 
 	
-	if {[lsearch -exact [all $moduleType] $moduleName] == -1} {#test if module is already in the pool -1 := not in pool
+	if {[lsearch [all $moduleType] $moduleName] == -1} {#test if module is already in the pool -1 := not in pool
 	
 		 	set returnedModule [create $moduleType $moduleName]
 		 	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex];#sets the desired connectionPort name, default is 0
@@ -199,8 +219,8 @@ $this proc getToggleValuesAndCreateSurfaces {module1 module1Port module2 module2
 #******************** the script loops ********************
 #
 $this proc constructor {} {
-	global allConPorts myMaterialsList myMaterialCount
-	global materialSeparator LabSet labSetButtons
+	global allConnectedConPorts labList labCountList
+	global labSeparatorList labSetArray labSetButtonList
 	
 	#$this setNoSave 1
 
@@ -232,26 +252,26 @@ $this proc constructor {} {
 	$this checkModuleStateAndSetVariables;
 	
 	#dynamically creates label ports for $this:
-	for {set i 1} {$i <= [array size allConPorts]} {incr i} {
+	for {set i 1} {$i <= [array size allConnectedConPorts]} {incr i} {
 		
 			$this newPortConnection labFieldPortCon$i HxUniformLabelField3
 			
 			#creates gui for material selection toggles:
-			$this newPortSeparator materialSeparator$i
-			$this newPortButtonList labSetButtons$i 2
-			$this labSetButtons$i setLabel "Select label set $i"
-			$this labSetButtons$i setLabel 0 "None"
-			$this labSetButtons$i setLabel 1 "All"
-			$this newPortToggleList labSet$i $myMaterialCount($i)
-			$this labSet$i setLabel "Label set $i"
+			$this newPortSeparator labSeparator$i
+			$this newPortButtonList labSetButtonList$i 2
+			$this labSetButtonList$i setLabel "Select label set $i"
+			$this labSetButtonList$i setLabel 0 "None"
+			$this labSetButtonList$i setLabel 1 "All"
+			$this newPortToggleList labSetArray$i $labCountList($i)
+			$this labSetArray$i setLabel "Label set $i"
 			
-			#this loop sets the labels for each toggle in LabSet$i port:
-			for {set x 0} {$x <= [$this labSet$i getNum]} {incr x} {
-				$this say "NAME: [lindex myMaterialsList($i) $i]"
-				$this labSet$i setLabel $x [lindex myMaterialsList($i) $i]
+			#this loop sets the labels for each toggle in labSetArray$i port:
+			for {set x 0} {$x <= [$this labSetArray$i getNum]} {incr x} {
+				$this say "NAME: [lindex labList($i) $i]"
+				$this labSetArray$i setLabel $x [lindex labList($i) $i]
 			}
 			
-			$this say "Materials in volume set $i: $myMaterialCount($i)"
+			$this say "Materials in volume set $i: $labCountList($i)"
 
 		
 		$this say "***first labelset created***\n"
@@ -291,20 +311,16 @@ $this proc constructor {} {
 	$this resampleOptions setLabel "Resample options"
 	
 	
-	if {$allConPorts(1) eq ""} {
-			$this say "connect a label field to one of the label field ports"
-	}
-	
-
 	#$this data hide;#shit, can not be deleted hmm...
+	
 	$this checkModuleStateAndSetVariables;
 }
   
    
 $this proc destructor {} {
 	
-	global allConPorts myMaterialsList myMaterialCount
-	global materialSeparator LabSet labSetButtons
+	global allConnectedConPorts labList labCountList
+	global labSeparatorList labSetArray labSetButtonList
 	global surfaceGen1Modul surfaceGen2Modul arythmeticModul
 	global surfaceView1Modul surfaceView2Modul extractSurface1Modul extractSurface2Modul
 
@@ -317,13 +333,6 @@ $this proc destructor {} {
 	if {[lsearch [all] $extractSurface2Modul] != -1} { remove $extractSurface2Modul }
 	if {[lsearch [all] $arythmeticModul] != -1} { remove $arythmeticModul }
 	
-	#unsetting of the arrays:
-	unset myMaterialsList
-	unset myMaterialCount
-	unset allConPorts
-	unset LabSet
-	unset labSetButtons
-	unset materialSeparator
 	
 	set hideNewModules 0
 	
@@ -340,8 +349,8 @@ $this proc compute {} {
 	global alignPrincipalAxesModul arythmeticModul
 	global userLabelListSelection1 userLabelListSelection2
 
-	global allConPorts myMaterialsList myMaterialCount
-	global materialSeparator LabSet labSetButtons
+	global allConnectedConPorts labList labCountList
+	global labSeparatorList labSetArray labSetButtonList
 
 	#some status checks:
 	
@@ -353,107 +362,7 @@ $this proc compute {} {
 	
 	$this checkModuleStateAndSetVariables
 		
-	#the next for loop and if statement takes care of right number of connection ports:
-	$this say "all connection Portsss: [array size allConPorts]"
 		
-	
-	for {set i 1} {$i <= [expr [array size allConPorts] + 0]} {incr i} {
-		
-		if { [$this [lindex [$this connectionPorts] $i] source] ne "" && [$this [lindex [$this connectionPorts] $i] isNew] == 1} {
-			
-						
-			$this newPortConnection labFieldPortCon[expr $i + 1] HxUniformLabelField3
-			
-			#creates gui for material selection toggles:
-			$this newPortSeparator materialSeparator$i
-			$this newPortButtonList labSetButtons$i 2
-			$this labSetButtons$i setLabel "Select label set $i"
-			$this labSetButtons$i setLabel 0 "None"
-			$this labSetButtons$i setLabel 1 "All"
-			$this newPortToggleList labSet$i $myMaterialCount($i)
-			$this labSet$i setLabel "Label set $i"
-			#this loop sets the labels for each toggle in LabSet($newPortNumber) port:
-			for {set x 0} {$x <= [$this labSet$i getNum]} {incr x} {
-				$this say "NAME: [lindex myMaterialsList($i) $i]"
-				$this labSet$i setLabel $x [lindex myMaterialsList($i) $i]
-			}
-						
-		}
-		if { [$this [lindex [$this connectionPorts] $i] source] eq "" && [lindex [$this connectionPorts] $i] ne "labFieldPortCon1"} {
-			
-			$this say "\n********************* ports will be deleted labFieldPortCon$i*********************\n"
-			
-			$this deletePort labFieldPortCon$i
-			
-			unset allConPorts([expr [lsearch [array get allConPorts] $i] + 1])
-						
-		}
-		if { [$this [lindex [$this connectionPorts] $i] source] eq "" && [lindex [$this connectionPorts] $i] ne "labFieldPortCon1"} {
-			
-			$this say "\n********************* ports will be deleted labFieldPortCon$i*********************\n"
-			
-			$this deletePort materialSeparator$i
-			$this deletePort labSetButtons$i
-			$this deletePort labSet$i
-			
-			
-			#unsetting of the arrays:
-			unset myMaterialsList([expr [lsearch [array get myMaterialsList] $i] + 1])
-			unset myMaterialCount([expr [lsearch [array get myMaterialCount] $i] + 1])
-			unset LabSet([expr [lsearch [array get LabSet] $i] + 1])
-			unset labSetButtons([expr [lsearch [array get labSetButtons] $i] + 1])
-			unset materialSeparator([expr [lsearch [array get materialSeparator] $i] + 1])
-		
-		}
-		
-		$this checkModuleStateAndSetVariables
-		
-		if {[$this [lindex [$this connectionPorts] $i] source] ne ""} {
-			
-			#if connections are new, construct the new gui (toggles with corresponding labels)
-			if {[$this $allConPorts($i) isNew] == 1} {
-			
-				$this say "hey i\´m connected: labFieldPortCon$i"
-							
-				$this $LabSet($i) setNum $myMaterialCount($i)
-				#this loop sets the labels for each toggle in LabSet1 port:
-				for {set x 0} {$x <= [$this $LabSet($i) getNum]} {incr x} {
-					$this $LabSet($i) setLabel $i [lindex myMaterialsList($i) $i]
-				}		
-				
-			}
-			if {[$this [lindex [$this connectionPorts] $i] source] ne ""} {#if $this labFieldPortCon$i is connected to label field
-				$this $materialSeparator($i) show
-				$this $LabSet($i) show
-				$this $labSetButtons($i) show
-			} else {
-				$this $materialSeparator($i) hide
-				$this $LabSet($i) hide
-				$this $labSetButtons($i) hide
-			}
-		
-			#checks the bottons states from "None" and "All":
-			set myButtonNoneWasHit($i) [$this $labSetButtons($i) wasHit 0]
-			set myButtonAllWasHit($i) [$this $labSetButtons($i) wasHit 1]
-			#check if buttons are pressed and set toggles
-			if {$myButtonNoneWasHit($i) == 1 && $allConPorts($i) ne ""} {
-				for {set x 0} {$x <= [$this LabSet($i) getNum]} {incr x} {
-					$this LabSet($i) setValue $x 0
-				}
-			}
-			if {$myButtonAllWasHit($i) == 1 && $allConPorts($i) ne ""} {
-				for {set x 0} {$x <= [$this LabSet($i) getNum]} {incr x} {
-					$this LabSet($i) setValue $x 1
-				}
-			}
-			set labelSelectionState($i) [$this $LabSet($i) getState];#state of te selected labels
-			
-		}
-		
-
-	}
-
-	
 	
 	
 	
@@ -503,9 +412,10 @@ $this proc compute {} {
 	}
 	
 	
+	
 	#********** actions **********
 	
-	if {[$this action getValue] == 0 && $allConPorts1 ne ""} {#start calculation when action button is pressed and $this has a valid source
+	if {[$this action getValue] == 0} {#start calculation when action button is pressed and $this has a valid source
 	
 		workArea startWorking
 	
@@ -516,9 +426,9 @@ $this proc compute {} {
 		
 		#check which label the user hast selected and save in userLabelListSelection1 list (this list containes the label and the material bundle index)
 		lset userLabelListSelection1 [list]
-		for {set i 0} {$i < [$this LabSet1 getNum]} {incr i} {
+		for {set i 0} {$i < [$this labSetArray1 getNum]} {incr i} {
 		
-			if {[$this LabSet1 getValue $i] == 1} { lappend userLabelListSelection1 "[$this LabSet1 getLabel $i] $i" }
+			if {[$this labSetArray1 getValue $i] == 1} { lappend userLabelListSelection1 "[$this labSetArray1 getLabel $i] $i" }
 			
 		}
 		
@@ -534,7 +444,7 @@ $this proc compute {} {
 		
 		if {$myPolygonSurfaceToggleIsChecked == 1} {
 		
-			$this createModuleAndConnectIfOkToSource HxGMC $surfaceGen1Modul $allConPorts1;
+			$this createModuleAndConnectIfOkToSource HxGMC $surfaceGen1Modul $allConnectedConPorts1;
 					
 			$surfaceGen1Modul fire
 		
@@ -555,7 +465,7 @@ $this proc compute {} {
 			$surfaceView1Modul buffer setValue 2;#make shure buffer is empty (hits botton "clear"), before filling it again with getToggleValuesAndCreateSurfaces procedure
 			$surfaceView1Modul compute
 			
-			$this getToggleValuesAndCreateSurfaces $this LabSet1 $surfaceView1Modul materials 1;#runs main code
+			$this getToggleValuesAndCreateSurfaces $this labSetArray1 $surfaceView1Modul materials 1;#runs main code
 			
 		}
 		
@@ -563,8 +473,8 @@ $this proc compute {} {
 		
 			lset theArithmeticExtractedSurfacesList [list]
 			
-			$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$allConPorts1 ImageData source];#connect a Arithmetic module to the voxelfield which connects to the labelfield
-			$arythmeticModul inputB connect $allConPorts1
+			$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$allConnectedConPorts1 ImageData source];#connect a Arithmetic module to the voxelfield which connects to the labelfield
+			$arythmeticModul inputB connect $allConnectedConPorts1
 			
 			
 			for {set i 0} {$i < [llength $userLabelListSelection1]} {incr i} {
@@ -600,7 +510,7 @@ $this proc compute {} {
 	
 	
 	#completion of compute procedure:
-#	if {$allConPorts($i) eq "" && $allConPorts2 eq "" && [$this getVar runCounter] > 0} {
+#	if {$allConnectedConPorts($i) eq "" && $allConnectedConPorts2 eq "" && [$this getVar runCounter] > 0} {
 #			$this say "nothing to process - no label field connected"
 #		}
 #	if {[lrange $resultSelectionState 3 5] eq [list 0 0 0] && [$this getVar runCounter] > 0} {
