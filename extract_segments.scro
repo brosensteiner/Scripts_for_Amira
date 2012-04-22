@@ -9,16 +9,16 @@ set theArithmeticExtractedSurfacesList [list];# keeps track of all extracted sur
 set theResampleZExtractedSurfacesList [list];# keeps track of all extracted surfaces from resample z runs
 set theCompleteExtractedSurfacesList [list];# keeps track of all extracted surfaces from all runs
 
-array set userLabListSelState {}
-array set labSetArray {}
-set labList [list]
-set labCountList [list]
-set allConnectedConPorts [list]
-set labSeparatorList [list]
-set labSetButtonList [list]
+array set userLabListSelState {};# array for the selection state of user selected toggles 
+array set labSetArray {};# array of all labels in labSet
+set labList [list];# list of all lab gui toggles
+set labCountList [list];# count list of all lab gui toogles
+set allConnectedConPorts [list];# list of all connection ports which have a source
+set labSeparatorList [list];# list of all lab gui separators
+set labSetButtonList [list];# list of all lab gui buttons
 set userResultSelState [list]
 set userSaveState [list]
-set emptyConPort 0
+set emptyConPort 0;# for counting empty connection ports of $this
 
 # i dont´t want name clashes with user given names for modules
 # so here are the hopefully cryptic enough generated names for the modules $this maybe creates
@@ -64,29 +64,42 @@ $this proc checkModuleStateAndSetVariables {} {
 	set labSetButtonList [list]
 	set emptyConPort 0
 	
-	set emptyConPortIntern 0
 	
 	# and then fill it again:
-	for {set i 0} {$i < [llength [$this connectionPorts]]} {incr i} {
+	for {set i 1} {$i < [llength [$this connectionPorts]]} {incr i} {
 	
-		if { [$this hasPort this labSet$i] == 1 } {
+		if { [$this hasPort this labSeparator$i] == 1 } {
 		
-			set userLabListSelState($i) [$this labSet$i getState]
-			
-			for {set x 0} { $x < [$this labSet$i getNum] } {incr i} {
-				set labSetArray($i) [$this labSet$i $i getLabel]
-			}
-			
+			set userLabListSelState($i) [$this labSet$i getState]			
 			lappend labList labSet$i
-			lappend labCountList [$this labSet$i getNum]
 			
 		}
 		if {[$this  [lindex [$this connectionPorts] $i] source] ne ""} {
 		
+			$this say "not empty::::: [$this  [lindex [$this connectionPorts] $i] source]"
+		
 			lappend allConnectedConPorts [$this [lindex [$this connectionPorts] $i] source]
+			lappend labCountList [[$this labFieldPortCon$i source] parameters Materials nBundles]
 			
-		} else {#there is an empty connection port
-			set emptyConPortIntern [incr emptyConPortIntern]
+			for {set x 0} { $x < [$this labSet$i getNum] } {incr x} {
+				set labSetArray($i) [$this labSet$i getLabel $x]
+			}
+			
+			# show the ports when connected to label field:
+			$this labSeparator$i show
+			$this labSetButtonList$i show
+			$this labSet$i show
+			
+		} else {
+			
+			# increment emptyConPort:
+			set emptyConPort [incr emptyConPort]
+			
+			# hide the ports when not connected to label field:
+			$this labSeparator$i hide
+			$this labSetButtonList$i hide
+			$this labSet$i hide
+			
 		}
 		if { [$this hasPort this labSeparator$i] == 1 } {
 			 lappend labSeparatorList labSeparator$i
@@ -97,10 +110,25 @@ $this proc checkModuleStateAndSetVariables {} {
 		
 	}
 	
-	set emptyConPort $emptyConPortIntern
 	
 	set userResultSelState [$this result getState]
 	set userSaveState [$this save getState]
+	
+	
+	# this loop sets the labels for each toggle in labSet port:
+	for { set x 1 } { $x <= [llength $allConnectedConPorts] } { incr x } {
+	
+		
+		if { [$this labFieldPortCon$x source] ne "" && [$this labFieldPortCon$x isNew] == 1  } {
+					
+			$this labSet$x setNum [lindex $labCountList [expr $x - 1]]
+			for { set y 0 } { $y < [lindex $labCountList [expr $x - 1]] } { incr y } {
+				$this labSet$x setLabel $y [lindex [[$this labFieldPortCon$x source] parameters Materials list] $y]
+			}
+			
+		}
+		
+	}
 	
 	# printing $this info (only for debugging):
 	$this say "\nuserLabListSelState: [array get userLabListSelState]"
@@ -124,7 +152,6 @@ $this proc createConPortButtonsToggles { i } {
 	global userLabListSelState userResultSelState userSaveState emptyConPort
 
 	$this checkModuleStateAndSetVariables;
-	
 		
 	$this newPortConnection labFieldPortCon$i HxUniformLabelField3
 		
@@ -134,31 +161,16 @@ $this proc createConPortButtonsToggles { i } {
 	$this labSetButtonList$i setLabel "Selection $i"
 	$this labSetButtonList$i setLabel 0 "None"
 	$this labSetButtonList$i setLabel 1 "All"
-	$this newPortToggleList labSet$i [lindex labCountList $i]
+	$this newPortToggleList labSet$i 0;# only init, right toggles numbers will be determind when label field is connected
 	$this labSet$i setLabel "Label set $i"
 	
-	
-	# this loop sets the labels for each toggle in labSetArray$i port:
-	for {set x 0} {$x <= [lindex $labCountList $x]} {incr x} {
-		$this say "NAME: [lindex $labList $i]"
-		$this labSet$i setLabel $x [lindex $labList $i]
-	}
+	# ports should initially hidden:
+	$this labSeparator$i hide
+	$this labSetButtonList$i hide
+	$this labSet$i hide
 	
 	$this checkModuleStateAndSetVariables;
 	
-	# hide ports of no module is connected:
-	if { [lindex $labCountList [expr $i - 1]] != 0 } {
-		$this  labSeparator$i show
-		$this labSetButtonList$i show
-		$this labSet$i show
-	} else {
-		$this  labSeparator$i hide
-		$this labSetButtonList$i hide
-		$this labSet$i hide
-	}
-	
-
-
 }
 
 # procedure which will create new connection port if no one is left for connecting a new label field
@@ -336,25 +348,37 @@ $this proc constructor {} {
 		$this labSetButtonList$i setLabel "Selection $i"
 		$this labSetButtonList$i setLabel 0 "None"
 		$this labSetButtonList$i setLabel 1 "All"
-		$this newPortToggleList labSet$i [lindex labCountList $i]
+		$this newPortToggleList labSet$i 0;# only init, right toggles numbers will be determind when label field is connected
 		$this labSet$i setLabel "Label set $i"
 		
 		
-		# this loop sets the labels for each toggle in labSetArray$i port:
-		for {set x 0} {$x <= [lindex $labCountList $x]} {incr x} {
-			$this say "NAME: [lindex $labList $i]"
-			$this labSet$i setLabel $x [lindex $labList $i]
+		# this loop sets the labels for each toggle in labSet port:
+		for { set x 1 } { $x <= [llength $allConnectedConPorts] } { incr x } {
+		
+			
+			if { [$this labFieldPortCon$x source] ne "" && [$this labFieldPortCon$x isNew] == 1  } {
+						
+				$this labSet$x setNum [lindex $labCountList [expr $x - 1]]
+				for { set y 0 } { $y < [lindex $labCountList [expr $x - 1]] } { incr y } {
+					$this labSet$x setLabel $y [lindex [[$this labFieldPortCon$x source] parameters Materials list] $y]
+				}
+				
+			}
+			
 		}
 		
 		$this checkModuleStateAndSetVariables;
 		
 		# hide ports of no module is connected:
 		if { [lindex $labCountList [expr $i - 1]] != 0 } {
-			$this  labSeparator$i show
+		
+		$this say "\nlabCountList index::::: [lindex $labCountList [expr $i - 1]]\n"
+		
+			$this labSeparator$i show
 			$this labSetButtonList$i show
 			$this labSet$i show
 		} else {
-			$this  labSeparator$i hide
+			$this labSeparator$i hide
 			$this labSetButtonList$i hide
 			$this labSet$i hide
 		}
