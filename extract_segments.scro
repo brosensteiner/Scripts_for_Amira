@@ -65,7 +65,7 @@ $this proc checkModuleStateAndSetVariables {} {
 	set emptyConPort 0
 	
 	
-	# and then fill it again:
+	# and then fill again the dynamic gui elements lists/arrays:
 	for {set i 1} {$i < [llength [$this connectionPorts]]} {incr i} {
 	
 		if { [$this hasPort this labSeparator$i] == 1 } {
@@ -110,16 +110,15 @@ $this proc checkModuleStateAndSetVariables {} {
 		
 	}
 	
-	
+	# setting the static gui elements:
 	set userResultSelState [$this result getState]
 	set userSaveState [$this save getState]
-	
 	
 	# this loop sets the labels for each toggle in labSet port:
 	for { set x 1 } { $x <= [llength $allConnectedConPorts] } { incr x } {
 	
 		
-		if { [$this labFieldPortCon$x source] ne "" && [$this labFieldPortCon$x isNew] == 1  } {
+		if { [$this labFieldPortCon$x source] ne "" && [$this labFieldPortCon$x isNew] == 1  } {#set the labels only new when connection port is new - reduces overhead
 					
 			$this labSet$x setNum [lindex $labCountList [expr $x - 1]]
 			for { set y 0 } { $y < [lindex $labCountList [expr $x - 1]] } { incr y } {
@@ -143,8 +142,8 @@ $this proc checkModuleStateAndSetVariables {} {
 	
 }
 
-# procedure creates automatically gui elements (separator, bottons, toggles) for a connected lab field
-#argument i is the number of portname
+# procedure creates gui elements (separator, bottons, toggles) for a connected lab field
+# argument i is the number of portname
 $this proc createConPortButtonsToggles { i } {
 
 	global allConnectedConPorts labList labCountList
@@ -172,18 +171,45 @@ $this proc createConPortButtonsToggles { i } {
 	$this checkModuleStateAndSetVariables;
 	
 }
+# procedure deletes gui elements (separator, bottons, toggles) for a connected lab field
+# argument i is the number of portname
+$this proc deleteConPortButtonsToggles { i } {
+
+	global allConnectedConPorts labList labCountList
+	global labSeparatorList labSetArray labSetButtonList
+	global userLabListSelState userResultSelState userSaveState emptyConPort
+
+	$this checkModuleStateAndSetVariables;
+		
+	$this deletePort labFieldPortCon$i
+	$this deletePort labSeparator$i
+	$this deletePort labSetButtonList$i
+	$this deletePort labSet$i
+	
+	$this checkModuleStateAndSetVariables;
+	
+}
 
 # procedure which will create new connection port if no one is left for connecting a new label field
 # otherwise it will delete a connection port if there are two of them with no label field connected
 $this proc conPortLogic {} {
 
-	global emptyConPort
+	global emptyConPort labList
+	
+	# create new connecton port when the last connecton port in the list has connected a label field:
+	if { [$this [lindex [$this connectionPorts] end] source] ne "" && $emptyConPort == 0 } {
 		
-	if { [$this [lindex [$this connectionPorts] end] source] ne "" && $emptyConPort < 2 } {
-		
-		$this createConPortButtonsToggles [llength [$this connectionPorts]];
+		$this createConPortButtonsToggles [expr [llength $labList] + 1];
 	}
-
+	# delete all connection ports begining at the end until the first connction port with a connected label field is found:
+	for { set i 0 } { $i < [llength [$this connectionPorts]] } { incr i } {
+	
+		if { [$this [lindex [$this connectionPorts] end] source] eq "" && $emptyConPort > 1 } {
+			
+			$this deleteConPortButtonsToggles [llength $labList];
+		}
+		
+	}
 
 }
 
