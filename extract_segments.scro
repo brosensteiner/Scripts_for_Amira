@@ -12,7 +12,7 @@ set theResampleZExtractedSurfacesList [list];# keeps track of all extracted surf
 set theCompleteExtractedSurfacesList [list];# keeps track of all extracted surfaces from all runs
 
 array set userLabListSelState {};# array for the selection state of user selected toggles 
-array set lastLabSetArray {};# array of all labels in labSet
+array set lastLabSetArray {};# array of all labels in last labSet
 set labList [list];# list of all lab gui toggles
 set labCountList [list];# count list of all lab gui toogles
 set allConnectedConPorts [list];# list of all connection ports which have a source
@@ -24,8 +24,7 @@ set emptyConPort 0;# for counting empty connection ports of $this
 
 # i dont´t want name clashes with user given names for modules
 # so here are the hopefully cryptic enough generated names for the modules $this maybe creates
-set surfaceGen1Modul XxXSurfaceGen1_${moduleName}
-set surfaceGen2Modul XxXSurfaceGen2_${moduleName}
+set surfaceGenModul XxXSurfaceGen1_${moduleName}
 set surfaceView1Modul XxXSurfaceView1_${moduleName}
 set surfaceView2Modul XxXSurfaceView2_${moduleName}
 set extractSurface1Modul XxXextractSurface1_${moduleName}
@@ -449,14 +448,13 @@ $this proc constructor {} {
    
 $this proc destructor {} {
 	
-	global surfaceGen1Modul surfaceGen2Modul arythmeticModul
+	global surfaceGenModul arythmeticModul
 	global surfaceView1Modul surfaceView2Modul extractSurface1Modul extractSurface2Modul
 	global userLabListSelState lastLabSetArray allConnectedConPorts labList labCountList
 	global labSeparatorList labSetButtonList emptyConPort
 
 	# removes the modules which the script eventually created when $this gets deleted:
-	if {[lsearch [all] $surfaceGen1Modul] != -1} { remove $surfaceGen1Modul }
-	if {[lsearch [all] $surfaceGen2Modul] != -1} { remove $surfaceGen2Modul }
+	if {[lsearch [all] $surfaceGenModul] != -1} { remove $surfaceGenModul }
 	if {[lsearch [all] $surfaceView1Modul] != -1} { remove $surfaceView1Modul }
 	if {[lsearch [all] $surfaceView2Modul] != -1} { remove $surfaceView2Modul }
 	if {[lsearch [all] $extractSurface1Modul] != -1} { remove $extractSurface1Modul }
@@ -492,12 +490,12 @@ $this proc compute {} {
 
 	$this testBreak;# for safety...
 	
-	global moduleName surfaceGen1Modul surfaceGen2Modul
+	global moduleName surfaceGenModul
 	global surfaceView1Modul surfaceView2Modul
 	global extractSurface1Modul extractSurface2Modul
 	global theExtractedSurfacesList theCompleteExtractedSurfacesList theArithmeticExtractedSurfacesList theResampleZExtractedSurfacesList
 	global alignPrincipalAxesModul arythmeticModul
-	global userLabListSelState1 userLabListSelState2
+	global userLabListSelState
 
 	global allConnectedConPorts labList labCountList
 	global labSeparatorList lastLabSetArray labSetButtonList
@@ -512,7 +510,7 @@ $this proc compute {} {
 	
 	$this checkModuleStateAndSetVariables;
 	
-	if { [$this getVar computeCounter] > 1 } { $this conPortLogic };# procedure conPortLogic will be executed after the first compute run
+	if { [$this getVar computeCounter] > 0 } { $this conPortLogic };# procedure conPortLogic will be executed after the first compute run
 	
 		
 	
@@ -566,20 +564,14 @@ $this proc compute {} {
 	
 		workArea startWorking
 	
-		$this setVar runCounter [incr [$this getVar runCounter]];# sets the new runCounter + 1
+		$this setVar runCounter [expr [$this getVar runCounter] + 1];# sets the new runCounter + 1
 		$this say "run [$this getVar runCounter]"
 		workArea setProgressInfo "starting calculation"
 		workArea setProgressValue 0.4
 		
-		# check which label the user hast selected and save in userLabListSelState1 list (this list containes the label and the material bundle index)
-		lset userLabListSelState1 [list]
-		for {set i 0} {$i < [$this lastLabSetArray1 getNum]} {incr i} {
 		
-			if {[$this lastLabSetArray1 getValue $i] == 1} { lappend userLabListSelState1 "[$this lastLabSetArray1 getLabel $i] $i" }
-			
-		}
-		
-		if {$myOverwriteToggleIsChecked == 1 && $theCompleteExtractedSurfacesList ne [list]} {# if toggle is set and list is not empty
+		# if toggle overwrite is set and list is not empty the next statement deletes all generated surfaces:
+		if {$myOverwriteToggleIsChecked == 1 && $theCompleteExtractedSurfacesList ne [list]} {
 		
 			foreach i $theCompleteExtractedSurfacesList {
 				remove $i
@@ -591,28 +583,31 @@ $this proc compute {} {
 		
 		if {$myPolygonSurfaceToggleIsChecked == 1} {
 		
-			$this createModuleAndConnectIfOkToSource HxGMC $surfaceGen1Modul $allConnectedConPorts1;
+			foreach labelfield $allConnectedConPorts {
+			
+				$this createModuleAndConnectIfOkToSource HxGMC $surfaceGenModul $labelfield;
+				
+				$surfaceGenModul fire
+			
+				$surfaceGenModul setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];# SmoothKernelSize is a internal variable which i will allow to set by user in gui
+				
+				# sets corresponding gui from $this for the SurfaceGen module:
+				$this setCorrespondingPort surfaceGenModul options 0;
+				$this setCorrespondingPort surfaceGenModul options 1;
+				$this setCorrespondingPort surfaceGenModul smoothing;
+								
+				$surfaceGenModul action setValue 0;# calculate the polygon surface
+				
+				$surfaceGenModul fire
 					
-			$surfaceGen1Modul fire
-		
-			$surfaceGen1Modul setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];# SmoothKernelSize is a internal variable which i will allow to set by user in gui
-			
-			# sets corresponding gui from $this for the SurfaceGen module:
-			$this setCorrespondingPort surfaceGen1Modul options 0;
-			$this setCorrespondingPort surfaceGen1Modul options 1;
-			$this setCorrespondingPort surfaceGen1Modul smoothing;
-							
-			$surfaceGen1Modul action setValue 0;# calculate the polygon surface
-			
-			$surfaceGen1Modul fire
-			
-			$this createModuleAndConnectIfOkToSource HxDisplaySurface $surfaceView1Modul [lindex [$surfaceGen1Modul downStreamConnections] 0 0];# connect a SurfaceView module for selecting the user specified labels in buffer
-		
-			$surfaceView1Modul compute
-			$surfaceView1Modul buffer setValue 2;# make shure buffer is empty (hits botton "clear"), before filling it again with getToggleValuesAndCreateSurfaces procedure
-			$surfaceView1Modul compute
-			
-			$this getToggleValuesAndCreateSurfaces $this lastLabSetArray1 $surfaceView1Modul materials 1;# runs main code
+				$this createModuleAndConnectIfOkToSource HxDisplaySurface $surfaceView1Modul [lindex [$surfaceGenModul downStreamConnections] 0 0];# connect a SurfaceView module for selecting the user specified labels in buffer
+				
+				$surfaceView1Modul compute
+				$surfaceView1Modul buffer setValue 2;# make shure buffer is empty (hits botton "clear"), before filling it again with getToggleValuesAndCreateSurfaces procedure
+				$surfaceView1Modul compute
+				
+				$this getToggleValuesAndCreateSurfaces $this lastLabSetArray1 $surfaceView1Modul materials 1;# runs main code
+			}
 			
 		}
 		
@@ -624,15 +619,15 @@ $this proc compute {} {
 			$arythmeticModul inputB connect $allConnectedConPorts1
 			
 			
-			for {set i 0} {$i < [llength $userLabListSelState1]} {incr i} {
+			for {set i 0} {$i < [llength $userLabListSelState]} {incr i} {
 			
 				$this testBreak;# maybe calculation here will take long
 				
-				$arythmeticModul expr setValue "\(A*\(B==[lindex $userLabListSelState1 $i 1]\)\)";# sets the extraction expression
+				$arythmeticModul expr setValue "\(A*\(B==[lindex $userLabListSelState $i 1]\)\)";# sets the extraction expression
 				$arythmeticModul doIt setValue 0;
 				$arythmeticModul fire
 
-				set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[lindex $userLabListSelState1 $i 0]"];# sets label for newly created voxelfield
+				set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[lindex $userLabListSelState $i 0]"];# sets label for newly created voxelfield
 				$theResultFromArithmeticCalcName master disconnect;# sisconnect, otherwise the result from arithmetic module will be overridden
 				
 				# append extracted voxel field to global lists:
