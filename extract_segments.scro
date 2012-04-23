@@ -69,7 +69,7 @@ $this proc checkModuleStateAndSetVariables {} {
 	# and then update again the lists/arrays:
 	for {set i 1} {$i < [llength [$this connectionPorts]]} {incr i} {
 	
-		if { [$this hasVar labSet$i] == 1 } {
+		if { [$this hasPort this labSeparator$i] == 1 } {
 			
 			for { set x 0 } { $x < [$this labSet$i getNum] } { incr x } {
 				set lastLabSetArray([expr $x + 1]) [$this labSet$i getLabel $x]
@@ -99,10 +99,10 @@ $this proc checkModuleStateAndSetVariables {} {
 			$this labSet$i hide
 			
 		}
-		if { [$this hasVar labSeparator$i] == 1 } {
+		if { [$this hasPort this labSeparator$i] == 1 } {
 			 lappend labSeparatorList labSeparator$i
 		}
-		if { [$this hasVar labSetButton$i] == 1 } {
+		if { [$this hasPort this labSetButton$i] == 1 } {
 			 lappend labSetButtonList labSetButton$i
 		}
 		
@@ -112,18 +112,13 @@ $this proc checkModuleStateAndSetVariables {} {
 	set userResultSelState [$this result getState]
 	set userSaveState [$this save getState]
 	
-	# this loop sets the labels for each dynamic toggle in labSet port:
+	# this loop sets the labels for each dynamic toggle in labSet ports:
 	for { set x 1 } { $x < [llength [$this connectionPorts]] } { incr x } {
 	
-		
-		if { [$this labFieldPortCon$x source] ne "" && [$this labFieldPortCon$x isNew] == 1  } {#set the labels only new when connection port is new - reduces overhead
-		
-
-			$this labSet$x setNum [lindex $labCountList [expr $x - 1]]
-			
-			$this say "I WILL SET LABELS!!! [$this labSet$x getNum] from labCountList index [lindex $labCountList [expr $x - 1]]"
-			
-			for { set y 0 } { $y < [lindex $labCountList [expr $x - 1]] } { incr y } {
+		if { [$this labFieldPortCon$x isNew] == 1 && [$this labFieldPortCon$x source] ne ""  } {#set the labels only new when connection port is new - reduces overhead
+					
+			$this labSet$x setNum [[$this labFieldPortCon$x source] parameters Materials nBundles];# get the number of material from the source and set number of toogles
+			for { set y 0 } { $y < [$this labSet$x getNum] } { incr y } {
 				$this labSet$x setLabel $y [lindex [[$this labFieldPortCon$x source] parameters Materials list] $y]
 			}
 			
@@ -151,6 +146,7 @@ $this proc bottonNonePressed { num } {
 	for {set i 0} {$i <= [$this labSet$num getNum]} {incr i} {
 		$this labSet$num setValue $i 0
 	}
+ 	$this checkModuleStateAndSetVariables
  			
 }
 # procedure which will be executed when a "All" button is pressed
@@ -159,6 +155,7 @@ $this proc bottonAllPressed { num } {
 	for {set i 0} {$i <= [$this labSet$num getNum]} {incr i} {
 		$this labSet$num setValue $i 1
 	}
+	$this checkModuleStateAndSetVariables;
   			
 }
 # procedure which assigns the "setCmd" amira command to every "None" and "All" button
@@ -192,8 +189,6 @@ $this proc createConPortButtonsToggles { i } {
 	global allConnectedConPorts labList labCountList
 	global labSeparatorList lastLabSetArray labSetButtonList
 	global userLabListSelState userResultSelState userSaveState emptyConPort
-
-	$this checkModuleStateAndSetVariables;
 		
 	$this newPortConnection labFieldPortCon$i HxUniformLabelField3
 		
@@ -223,8 +218,6 @@ $this proc deleteConPortButtonsToggles { i } {
 	global allConnectedConPorts labList labCountList
 	global labSeparatorList lastLabSetArray labSetButtonList
 	global userLabListSelState userResultSelState userSaveState emptyConPort
-
-	$this checkModuleStateAndSetVariables;
 		
 	$this deletePort labFieldPortCon$i
 	$this deletePort labSeparator$i
@@ -250,16 +243,12 @@ $this proc conPortLogic {} {
 	for { set i 0 } { $i < [llength [$this connectionPorts]] } { incr i } {
 	
 		if { [$this [lindex [$this connectionPorts] end] source] eq "" && $emptyConPort > 1 } {
-			$this say "\n***i delete now a conPort because you have enough left ***\n"
 			$this deleteConPortButtonsToggles [llength $labList];
 		}
 		
 	}
 
 }
-
-
- 
 
 # procedure which creates moduleType and connects it with sourceName module and checks if connection is valid
 # moduleName is the name of the module in the pool
@@ -409,7 +398,6 @@ $this proc constructor {} {
 	$this action setLabel 0 "Dolt"
 	$this action hide;# actually need not be visible, because apply botton does the job
 	
-	#$this checkModuleStateAndSetVariables;
 	
 	# when savedLabes is not defined it will be (will only be the case at first loading $this,
 	# afterwards it is always defined -> see proc savePreparation):
@@ -456,7 +444,6 @@ $this proc constructor {} {
 	$this newPortToggleList resampleOptions 2
 	$this resampleOptions setLabel "Resample options"
 		
-	$this checkModuleStateAndSetVariables;
 }
   
    
@@ -525,7 +512,7 @@ $this proc compute {} {
 	
 	$this checkModuleStateAndSetVariables;
 	
-	if { [$this getVar computeCounter] > 0 } { $this conPortLogic }
+	if { [$this getVar computeCounter] > 1 } { $this conPortLogic };# procedure conPortLogic will be executed after the first compute run
 	
 		
 	
