@@ -24,9 +24,8 @@ set emptyConPort 0;# for counting empty connection ports of $this
 
 # i dont´t want name clashes with user given names for modules
 # so here are the hopefully cryptic enough generated names for the modules $this maybe creates
-set surfaceGenModul XxXSurfaceGen1_${moduleName}
-set surfaceView1Modul XxXSurfaceView1_${moduleName}
-set surfaceView2Modul XxXSurfaceView2_${moduleName}
+set surfaceGenModul XxXSurfaceGen_${moduleName}
+set surfaceViewModul XxXSurfaceView_${moduleName}
 set extractSurface1Modul XxXextractSurface1_${moduleName}
 set extractSurface2Modul XxXextractSurface2_${moduleName}
 set alignPrincipalAxesModul XxXalignPrincipalAxes_${moduleName}
@@ -157,29 +156,6 @@ $this proc bottonAllPressed { num } {
 	$this checkModuleStateAndSetVariables;
   			
 }
-# procedure which assigns the "setCmd" amira command to every "None" and "All" button
-$this proc concatenateCommand { i } {
-
-	#build a stings for setCmc commands, because $i has to be evaluated before it is given as argument for setCmd ($i is a local variable here):
-	set stringN1 "\$this labSetButtonList\$i setCmd 0 \{ \$this bottonNonePressed "
-	set stringN2 "$i \}";# $i will be evaluated here!
-	
-	set stringA1 "\$this labSetButtonList\$i setCmd 1 \{ \$this bottonAllPressed "
-	set stringA2 "$i \}";# $i will be evaluated here!
-	
-	set completeStringN ""
-	set completeStringA ""
-	
-	# concatenate stings:
-	append completeStringN $stringN1 $stringN2
-	append completeStringA $stringA1 $stringA2
-	
-	#evaluate the strings:
-	eval $completeStringN
-	eval $completeStringA
-	
-}
-
 
 # procedure creates gui elements (separator, bottons, toggles) for a connected lab field
 # argument i is the number of portname
@@ -200,7 +176,9 @@ $this proc createConPortButtonsToggles { i } {
 	$this newPortToggleList labSet$i 0;# only init, right toggles numbers will be determind when label field is connected
 	$this labSet$i setLabel "Label set $i"
 	
-	$this concatenateCommand $i
+	# build stings for setCmc commands, because $toEval has to be evaluated before it is given as argument for setCmd
+	eval "\$this labSetButtonList\$i setCmd 0 \{ \$this bottonNonePressed " "$i \}"
+	eval "\$this labSetButtonList\$i setCmd 1 \{ \$this bottonAllPressed " "$i \}"
 	
 	# ports should initially hidden:
 	$this labSeparator$i hide
@@ -302,7 +280,7 @@ $this proc setCorrespondingPort { module port { portIndex 0 } } {
 
 $this proc getToggleValuesAndCreateSurfaces { module1 module1Port module2 module2Port {portIndex 0} } {
 
-	global extractSurface1Modul surfaceView1Modul
+	global extractSurface1Modul surfaceViewModul
 	global theExtractedSurfacesList theCompleteExtractedSurfacesList
 	global alignPrincipalAxesModul arythmeticModul
 	
@@ -320,7 +298,7 @@ $this proc getToggleValuesAndCreateSurfaces { module1 module1Port module2 module
 			$module2 compute
 			
 			# here happens the extraction of the surfaces:
-			$this createModuleAndConnectIfOkToSource HxViewBaseExtract $extractSurface1Modul $surfaceView1Modul
+			$this createModuleAndConnectIfOkToSource HxViewBaseExtract $extractSurface1Modul $surfaceViewModul
 			$extractSurface1Modul action setValue 0
 			$extractSurface1Modul fire
 			
@@ -373,7 +351,7 @@ $this proc constructor {} {
 	global labSeparatorList lastLabSetArray labSetButtonList
 	global userLabListSelState userResultSelState userSaveState
 
-	# $this setNoSave 1
+	# $this setNoSave 1;# $this can now correctly be saved with the network, so no need for this ...
 
 	$this sayHello
 	$this select;# $this should be selected after loading
@@ -397,18 +375,14 @@ $this proc constructor {} {
 	$this action setLabel 0 "Dolt"
 	$this action hide;# actually need not be visible, because apply botton does the job
 	
-	
-	# when savedLabes is not defined it will be (will only be the case at first loading $this,
+	# when savedLabes is not defined it will with this if statement (will only be the case at first loading $this,
 	# afterwards it is always defined -> see proc savePreparation):
 	if { [$this hasVar savedLabels] == 0} {# hasVar is undocumented in Amira ducomentation, but indispensable ...
 		 $this setVar savedLabels 1
 	}
-		 
 	# this loop creates the needed dynamic gui elements (savedLabels global variable is the counter for how many will be created):
 	for { set i 1 } { $i <= [$this getVar savedLabels] } { incr i } {
-			
 		$this createConPortButtonsToggles $i
-		
 	}
 
 	# creates smoothing options:
@@ -449,14 +423,13 @@ $this proc constructor {} {
 $this proc destructor {} {
 	
 	global surfaceGenModul arythmeticModul
-	global surfaceView1Modul surfaceView2Modul extractSurface1Modul extractSurface2Modul
+	global surfaceViewModul extractSurface1Modul extractSurface2Modul
 	global userLabListSelState lastLabSetArray allConnectedConPorts labList labCountList
 	global labSeparatorList labSetButtonList emptyConPort
 
 	# removes the modules which the script eventually created when $this gets deleted:
 	if {[lsearch [all] $surfaceGenModul] != -1} { remove $surfaceGenModul }
-	if {[lsearch [all] $surfaceView1Modul] != -1} { remove $surfaceView1Modul }
-	if {[lsearch [all] $surfaceView2Modul] != -1} { remove $surfaceView2Modul }
+	if {[lsearch [all] $surfaceViewModul] != -1} { remove $surfaceViewModul }
 	if {[lsearch [all] $extractSurface1Modul] != -1} { remove $extractSurface1Modul }
 	if {[lsearch [all] $extractSurface2Modul] != -1} { remove $extractSurface2Modul }
 	if {[lsearch [all] $arythmeticModul] != -1} { remove $arythmeticModul }
@@ -491,7 +464,7 @@ $this proc compute {} {
 	$this testBreak;# for safety...
 	
 	global moduleName surfaceGenModul
-	global surfaceView1Modul surfaceView2Modul
+	global surfaceViewModul
 	global extractSurface1Modul extractSurface2Modul
 	global theExtractedSurfacesList theCompleteExtractedSurfacesList theArithmeticExtractedSurfacesList theResampleZExtractedSurfacesList
 	global alignPrincipalAxesModul arythmeticModul
@@ -557,7 +530,6 @@ $this proc compute {} {
 	}
 	
 	
-	
 	# ********** actions **********
 	
 	if {[$this action getValue] == 0} {# start calculation when action button is pressed and $this has a valid source
@@ -589,7 +561,7 @@ $this proc compute {} {
 				
 				$surfaceGenModul fire
 			
-				$surfaceGenModul setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];# SmoothKernelSize is a internal variable which i will allow to set by user in gui
+				$surfaceGenModul setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];# SmoothKernelSize is a internal, but documented variable which i will allow to set by user in gui
 				
 				# sets corresponding gui from $this for the SurfaceGen module:
 				$this setCorrespondingPort surfaceGenModul options 0;
@@ -600,13 +572,13 @@ $this proc compute {} {
 				
 				$surfaceGenModul fire
 					
-				$this createModuleAndConnectIfOkToSource HxDisplaySurface $surfaceView1Modul [lindex [$surfaceGenModul downStreamConnections] 0 0];# connect a SurfaceView module for selecting the user specified labels in buffer
+				$this createModuleAndConnectIfOkToSource HxDisplaySurface $surfaceViewModul [lindex [$surfaceGenModul downStreamConnections] 0 0];# connect a SurfaceView module for selecting the user specified labels in buffer
 				
-				$surfaceView1Modul compute
-				$surfaceView1Modul buffer setValue 2;# make shure buffer is empty (hits botton "clear"), before filling it again with getToggleValuesAndCreateSurfaces procedure
-				$surfaceView1Modul compute
+				$surfaceViewModul compute
+				$surfaceViewModul buffer setValue 2;# make shure buffer is empty (hits botton "clear"), before filling it again with getToggleValuesAndCreateSurfaces procedure
+				$surfaceViewModul compute
 				
-				$this getToggleValuesAndCreateSurfaces $this lastLabSetArray1 $surfaceView1Modul materials 1;# runs main code
+				$this getToggleValuesAndCreateSurfaces $this lastLabSetArray1 $surfaceViewModul materials 1;# runs main code
 			}
 			
 		}
@@ -659,7 +631,7 @@ $this proc compute {} {
 #			$this say "nothing to process - choose on ore more result options"
 #		}
 		
-	$this setVar computeCounter [expr [$this getVar computeCounter] + 1]
+	$this setVar computeCounter [expr [$this getVar computeCounter] + 1];# computeCounter will get +1 for every run from compute proc
 }
   
   
