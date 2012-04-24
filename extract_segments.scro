@@ -1,6 +1,6 @@
 # Amira-Script-Object V3.0
 
-set moduleName [string map {"\.scro" ""} $this]
+set moduleName [string map {"\.scro" ""} $this];# the name of the module generated from the script filename
 
 # definition of global variables:
 $this setVar runCounter 0
@@ -16,18 +16,16 @@ array set lastLabSetArray {};# array of all labels in last labSet
 set labList [list];# list of all lab gui toggles
 set labCountList [list];# count list of all lab gui toogles
 set allConnectedConPorts [list];# list of all connection ports which have a source
-set labSeparatorList [list];# list of all lab gui separators
-set labSetButtonList [list];# list of all lab gui buttons
+set labSetList [list];# list of all lab sets which are in gui
 set userResultSelState [list]
 set userSaveState [list]
-set emptyConPort 0;# for counting empty connection ports of $this
+set emptyConPorts 0;# for counting empty connection ports of $this
 
 # i dont´t want name clashes with user given names for modules
 # so here are the hopefully cryptic enough generated names for the modules $this maybe creates
 set surfaceGenModul XxXSurfaceGen_${moduleName}
 set surfaceViewModul XxXSurfaceView_${moduleName}
-set extractSurface1Modul XxXextractSurface1_${moduleName}
-set extractSurface2Modul XxXextractSurface2_${moduleName}
+set extractSurfaceModul XxXextractSurface1_${moduleName}
 set alignPrincipalAxesModul XxXalignPrincipalAxes_${moduleName}
 set arythmeticModul XxXArithmetic_${moduleName}
 
@@ -35,7 +33,7 @@ $this proc sayHello {} {
 	global moduleName
 	echo "\n************ module \"$moduleName\" loaded successfully :) ************\n"
 }
-$this proc say {something} {
+$this proc say { something } {
 	global moduleName
 	echo "$moduleName: $something"
 }
@@ -43,14 +41,14 @@ $this proc say {something} {
 # simple port test: procedure returns 1 when modul has port, otherwise it returns 0
 $this proc hasPort {modul port} {
 	upvar #1 $modul myModule
-	if {[lsearch [$myModule allPorts] $port] != -1} { return 1 } else { return 0 }
+	if { [lsearch [$myModule allPorts] $port] != -1 } { return 1 } else { return 0 }
 }
 
 # function which checks on some $this states and saves some typing:
 $this proc checkModuleStateAndSetVariables {} {
 
 	global allConnectedConPorts labList labCountList
-	global labSeparatorList lastLabSetArray userLabListSelState labSetButtonList emptyConPort
+	global lastLabSetArray userLabListSelState labSetList emptyConPorts
 	
 	$this fire
 	
@@ -60,12 +58,11 @@ $this proc checkModuleStateAndSetVariables {} {
 	set allConnectedConPorts [list]
 	set labList [list]
 	set labCountList [list]
-	set labSeparatorList [list]
-	set labSetButtonList [list]
-	set emptyConPort 0
+	set labSetList [list]
+	set emptyConPorts 0
 	
 	# and then update again the lists/arrays:
-	for {set i 1} {$i < [llength [$this connectionPorts]]} {incr i} {
+	for { set i 1 } { $i < [llength [$this connectionPorts]] } { incr i } {
 	
 		if { [$this hasPort this labSeparator$i] == 1 } {
 			
@@ -80,28 +77,23 @@ $this proc checkModuleStateAndSetVariables {} {
 				
 			lappend allConnectedConPorts [$this [lindex [$this connectionPorts] $i] source]
 			lappend labCountList [[$this labFieldPortCon$i source] parameters Materials nBundles]
+			lappend labSetList labSet$i
 
 			# show the ports when connected to label field:
 			$this labSeparator$i show
-			$this labSetButtonList$i show
+			$this labSetSelBottons$i show
 			$this labSet$i show
 			
 		} else {
 			
-			# increment emptyConPort:
-			set emptyConPort [incr emptyConPort]
+			# increment emptyConPorts:
+			set emptyConPorts [incr emptyConPorts]
 			
 			# hide the ports when not connected to label field:
 			$this labSeparator$i hide
-			$this labSetButtonList$i hide
+			$this labSetSelBottons$i hide
 			$this labSet$i hide
 			
-		}
-		if { [$this hasPort this labSeparator$i] == 1 } {
-			 lappend labSeparatorList labSeparator$i
-		}
-		if { [$this hasPort this labSetButton$i] == 1 } {
-			 lappend labSetButtonList labSetButton$i
 		}
 		
 	}
@@ -129,10 +121,10 @@ $this proc checkModuleStateAndSetVariables {} {
 	$this say "\nuserLabListSelState: [array get userLabListSelState]"
 	$this say "lastLabSetArray: [array get lastLabSetArray]"
 	$this say "allConnectedConPorts: $allConnectedConPorts"
+	$this say "emptyConPorts: $emptyConPorts"
 	$this say "labList: $labList"
 	$this say "labCountList: $labCountList"
-	$this say "labSeparatorList: $labSeparatorList"
-	$this say "labSetButtonList: $labSetButtonList"
+	$this say "labSetList: $labSetList"
 	$this say "userResultSelState: $userResultSelState"
 	$this say "userSaveState: $userSaveState\n"
 	
@@ -141,7 +133,7 @@ $this proc checkModuleStateAndSetVariables {} {
 # procedure which will be executed when a "None" button is pressed
 $this proc bottonNonePressed { num } {
 	
-	for {set i 0} {$i <= [$this labSet$num getNum]} {incr i} {
+	for { set i 0 } { $i <= [$this labSet$num getNum] } { incr i } {
 		$this labSet$num setValue $i 0
 	}
  	$this checkModuleStateAndSetVariables
@@ -150,7 +142,7 @@ $this proc bottonNonePressed { num } {
 # procedure which will be executed when a "All" button is pressed
 $this proc bottonAllPressed { num } {
  	
-	for {set i 0} {$i <= [$this labSet$num getNum]} {incr i} {
+	for { set i 0 } { $i <= [$this labSet$num getNum] } { incr i } {
 		$this labSet$num setValue $i 1
 	}
 	$this checkModuleStateAndSetVariables;
@@ -162,27 +154,27 @@ $this proc bottonAllPressed { num } {
 $this proc createConPortButtonsToggles { i } {
 
 	global allConnectedConPorts labList labCountList
-	global labSeparatorList lastLabSetArray labSetButtonList
-	global userLabListSelState userResultSelState userSaveState emptyConPort
+	global lastLabSetArray labSetList
+	global userLabListSelState userResultSelState userSaveState emptyConPorts
 		
 	$this newPortConnection labFieldPortCon$i HxUniformLabelField3
-		
+	
 	# creates gui for material selection toggles:
 	$this newPortSeparator labSeparator$i
-	$this newPortButtonList labSetButtonList$i 2
-	$this labSetButtonList$i setLabel "Selection $i"
-	$this labSetButtonList$i setLabel 0 "None"
-	$this labSetButtonList$i setLabel 1 "All"
+	$this newPortButtonList labSetSelBottons$i 2
+	$this labSetSelBottons$i setLabel "Selection $i"
+	$this labSetSelBottons$i setLabel 0 "None"
+	$this labSetSelBottons$i setLabel 1 "All"
 	$this newPortToggleList labSet$i 0;# only init, right toggles numbers will be determind when label field is connected
 	$this labSet$i setLabel "Label set $i"
 	
 	# build stings for setCmc commands, because $toEval has to be evaluated before it is given as argument for setCmd
-	eval "\$this labSetButtonList\$i setCmd 0 \{ \$this bottonNonePressed " "$i \}"
-	eval "\$this labSetButtonList\$i setCmd 1 \{ \$this bottonAllPressed " "$i \}"
+	eval "\$this labSetSelBottons\$i setCmd 0 \{ \$this bottonNonePressed " "$i \}"
+	eval "\$this labSetSelBottons\$i setCmd 1 \{ \$this bottonAllPressed " "$i \}"
 	
 	# ports should initially hidden:
 	$this labSeparator$i hide
-	$this labSetButtonList$i hide
+	$this labSetSelBottons$i hide
 	$this labSet$i hide
 	
 	$this checkModuleStateAndSetVariables;
@@ -193,33 +185,34 @@ $this proc createConPortButtonsToggles { i } {
 $this proc deleteConPortButtonsToggles { i } {
 
 	global allConnectedConPorts labList labCountList
-	global labSeparatorList lastLabSetArray labSetButtonList
-	global userLabListSelState userResultSelState userSaveState emptyConPort
+	global lastLabSetArray labSetList
+	global userLabListSelState userResultSelState userSaveState emptyConPorts
 		
 	$this deletePort labFieldPortCon$i
 	$this deletePort labSeparator$i
-	$this deletePort labSetButtonList$i
+	$this deletePort labSetSelBottons$i
 	$this deletePort labSet$i
 	
 	$this checkModuleStateAndSetVariables;
 	
 }
 
-# procedure which will create new connection port if no one is left for connecting a new label field
-# otherwise it will delete a connection port if there are two of them with no label field connected
+# procedure which will make shure that there is always a free connection port for connecting a label field
+# all connection ports at the end will be deleted if there is a free connection port somewhere in the middle
+# (is a smarter logic that for example the amira´s own ExtractSurface module has)
 $this proc conPortLogic {} {
 
-	global emptyConPort labList
+	global emptyConPorts labList
 	
 	# create new connecton port when the last connecton port in the list has connected a label field:
-	if { [$this [lindex [$this connectionPorts] end] source] ne "" && $emptyConPort == 0 } {
+	if { [$this [lindex [$this connectionPorts] end] source] ne "" && $emptyConPorts == 0 } {
 		
 		$this createConPortButtonsToggles [expr [llength $labList] + 1];
 	}
 	# delete all connection ports beginning at the end until the first connction port with a connected label field is found:
 	for { set i 0 } { $i < [llength [$this connectionPorts]] } { incr i } {
 	
-		if { [$this [lindex [$this connectionPorts] end] source] eq "" && $emptyConPort > 1 } {
+		if { [$this [lindex [$this connectionPorts] end] source] eq "" && $emptyConPorts > 1 } {
 			$this deleteConPortButtonsToggles [llength $labList];
 		}
 		
@@ -234,20 +227,20 @@ $this proc conPortLogic {} {
 $this proc createModuleAndConnectIfOkToSource { moduleType moduleName sourceName { conPortIndex 0 } } {
 
 	
-	if {[lsearch [all $moduleType] $moduleName] == -1} {# test if module is already in the pool -1 := not in pool
+	if { [lsearch [all $moduleType] $moduleName] == -1 } {# test if module is already in the pool -1 := not in pool
 	
 		 	set returnedModule [create $moduleType $moduleName]
 		 	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex];# sets the desired connectionPort name, default is 0
-		 	if {[$moduleName $theConnectionPort validSource $sourceName] == 1} {
-		 		if {[$moduleName $theConnectionPort source] ne $sourceName} {$moduleName $theConnectionPort connect $sourceName};
+		 	if { [$moduleName $theConnectionPort validSource $sourceName] == 1 } {
+		 		if { [$moduleName $theConnectionPort source] ne $sourceName } { $moduleName $theConnectionPort connect $sourceName };
 		 	} else { $this say "$sourceName is no valid source for $moduleName" }
 		 	
 		 } else {
 		 	
 		 	set returnedModule $moduleName
 		 	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex]
-		 	if {[$moduleName $theConnectionPort validSource $sourceName] == 1} {
-		 		if {[$moduleName $theConnectionPort source] ne $sourceName} {$moduleName $theConnectionPort connect $sourceName};
+		 	if { [$moduleName $theConnectionPort validSource $sourceName] == 1 } {
+		 		if { [$moduleName $theConnectionPort source] ne $sourceName } { $moduleName $theConnectionPort connect $sourceName };
 		 	} else { $this say "$sourceName is no valid source for $moduleName" }
 		 	
 	}
@@ -278,77 +271,14 @@ $this proc setCorrespondingPort { module port { portIndex 0 } } {
 
 }
 
-$this proc getToggleValuesAndCreateSurfaces { module1 module1Port module2 module2Port {portIndex 0} } {
 
-	global extractSurface1Modul surfaceViewModul
-	global theExtractedSurfacesList theCompleteExtractedSurfacesList
-	global alignPrincipalAxesModul arythmeticModul
-	
-	set theExtractedSurfacesList [list]
-	
-	for { set i 0 } { $i < [$module1 $module1Port getNum] } {incr i} {
-	
-		if { [$module1 $module1Port getValue $i] == 1 } {
-			
-			set theLabelOfModule1Port [$module1 $module1Port getLabel $i]
-			
-			$module2 $module2Port setValueString $portIndex $theLabelOfModule1Port
-			$module2 fire;# essential: all downStreamConnections must be updated!
-			$module2 buffer setValue 0;# add to buffer (hit add button)
-			$module2 compute
-			
-			# here happens the extraction of the surfaces:
-			$this createModuleAndConnectIfOkToSource HxViewBaseExtract $extractSurface1Modul $surfaceViewModul
-			$extractSurface1Modul action setValue 0
-			$extractSurface1Modul fire
-			
-			set newExtractedSurface [[lindex [$extractSurface1Modul downStreamConnections] 0 0] setLabel "$theLabelOfModule1Port.surf"]
-			
-			lappend theExtractedSurfacesList $newExtractedSurface
-				
-			$newExtractedSurface master disconnect;# otherwise the newly created surface gets overriden in the next for loop iteration
-			$newExtractedSurface recompute
-			$newExtractedSurface cleanup
-			$newExtractedSurface fixOrientation;# helps maybe
-			# $newExtractedSurface makeOnePatch
-			$newExtractedSurface compute
-			$module2 buffer setValue 2;# remove from buffer (hit remove button)
-			$module2 compute
-			
-		}
-		
-	}
-	
-	if {$theExtractedSurfacesList eq [list]} {# if list is empty echo warning, else process
-		$this say "no labels for extraction selected"
-		} else {
-		
-			lset theCompleteExtractedSurfacesList [concat $theCompleteExtractedSurfacesList $theExtractedSurfacesList];# save all generated surfaces in theCompleteExtractedSurfacesList list
-			
-			$module2 buffer setValue 1;# only get rid of the last selection in buffer which would otherwise be visible in the viewer
-			$module2 compute
-			
-			# in this foreach iteration the surfaces in the theExtractedSurfacesList list will be further processed
-			foreach theSurface $theExtractedSurfacesList {
-				
-				$this createModuleAndConnectIfOkToSource HxAlignPrincipalAxes $alignPrincipalAxesModul $theSurface
-				$alignPrincipalAxesModul action setValue 0
-				$alignPrincipalAxesModul fire
-				
-			}
-		
-		}
-	
-	remove $alignPrincipalAxesModul;# AlignPrincipalAxes module is not needed any more.
-		
-}
 #
 # ******************** the script loops ********************
 #
 $this proc constructor {} {
 
 	global allConnectedConPorts labList labCountList
-	global labSeparatorList lastLabSetArray labSetButtonList
+	global lastLabSetArray labSetList
 	global userLabListSelState userResultSelState userSaveState
 
 	# $this setNoSave 1;# $this can now correctly be saved with the network, so no need for this ...
@@ -374,16 +304,6 @@ $this proc constructor {} {
 	$this action setLabel "Action"
 	$this action setLabel 0 "Dolt"
 	$this action hide;# actually need not be visible, because apply botton does the job
-	
-	# when savedLabes is not defined it will with this if statement (will only be the case at first loading $this,
-	# afterwards it is always defined -> see proc savePreparation):
-	if { [$this hasVar savedLabels] == 0} {# hasVar is undocumented in Amira ducomentation, but indispensable ...
-		 $this setVar savedLabels 1
-	}
-	# this loop creates the needed dynamic gui elements (savedLabels global variable is the counter for how many will be created):
-	for { set i 1 } { $i <= [$this getVar savedLabels] } { incr i } {
-		$this createConPortButtonsToggles $i
-	}
 
 	# creates smoothing options:
 	$this newPortSeparator smoothingSeparator
@@ -393,13 +313,13 @@ $this proc constructor {} {
 	$this smoothing setLabel 0 1 "constrained smoothing"
 	$this smoothing setLabel 0 2 "unconstrained smoothing"
 	
-	$this newPortFloatSlider  SmoothingSliderPort1
-	$this SmoothingSliderPort1 setLabel "SmoothingKernelSize"
-	$this SmoothingSliderPort1 setMinMax 1 9
-	$this SmoothingSliderPort1 setFormat "%.2g"
-	$this SmoothingSliderPort1 setNumColumns 3
-	$this SmoothingSliderPort1 setValue 4;# initial value for smoothing slider. My tests have shown this is most of the time a good value
-	$this SmoothingSliderPort1 setTracking 1
+	$this newPortFloatSlider  SmoothingSliderPort
+	$this SmoothingSliderPort setLabel "SmoothingKernelSize"
+	$this SmoothingSliderPort setMinMax 1 9
+	$this SmoothingSliderPort setFormat "%.2g"
+	$this SmoothingSliderPort setNumColumns 3
+	$this SmoothingSliderPort setValue 4;# initial value for smoothing slider. My tests have shown this is most of the time a good value
+	$this SmoothingSliderPort setTracking 1
 	
 	# recreates the options port from SurfaceGen
 	$this newPortToggleList options 2
@@ -416,6 +336,16 @@ $this proc constructor {} {
 	$this newPortSeparator resampleSeparator
 	$this newPortToggleList resampleOptions 2
 	$this resampleOptions setLabel "Resample options"
+	
+	# when savedLabes is not defined it will with this if statement (will only be the case at first loading $this,
+	# afterwards it is always defined -> see proc savePreparation):
+	if { [$this hasVar savedLabels] == 0} {# hasVar is undocumented in Amira ducomentation, but indispensable ...
+		 $this setVar savedLabels 1
+	}
+	# this loop creates the needed dynamic gui elements (savedLabels global variable is the counter for how many will be created):
+	for { set i 1 } { $i <= [$this getVar savedLabels] } { incr i } {
+		$this createConPortButtonsToggles $i
+	}
 		
 }
   
@@ -423,16 +353,15 @@ $this proc constructor {} {
 $this proc destructor {} {
 	
 	global surfaceGenModul arythmeticModul
-	global surfaceViewModul extractSurface1Modul extractSurface2Modul
+	global surfaceViewModul extractSurfaceModul
 	global userLabListSelState lastLabSetArray allConnectedConPorts labList labCountList
-	global labSeparatorList labSetButtonList emptyConPort
+	global labSetList emptyConPorts
 
 	# removes the modules which the script eventually created when $this gets deleted:
-	if {[lsearch [all] $surfaceGenModul] != -1} { remove $surfaceGenModul }
-	if {[lsearch [all] $surfaceViewModul] != -1} { remove $surfaceViewModul }
-	if {[lsearch [all] $extractSurface1Modul] != -1} { remove $extractSurface1Modul }
-	if {[lsearch [all] $extractSurface2Modul] != -1} { remove $extractSurface2Modul }
-	if {[lsearch [all] $arythmeticModul] != -1} { remove $arythmeticModul }
+	if { [lsearch [all] $surfaceGenModul] != -1 } { remove $surfaceGenModul }
+	if { [lsearch [all] $surfaceViewModul] != -1 } { remove $surfaceViewModul }
+	if { [lsearch [all] $extractSurfaceModul] != -1 } { remove $extractSurfaceModul }
+	if { [lsearch [all] $arythmeticModul] != -1 } { remove $arythmeticModul }
 	
 	# unset all global variables:
 	unset userLabListSelState
@@ -440,9 +369,8 @@ $this proc destructor {} {
 	unset allConnectedConPorts
 	unset labList
 	unset labCountList
-	unset labSeparatorList
-	unset labSetButtonList
-	unset emptyConPort
+	unset labSetList
+	unset emptyConPorts
 	
 	set hideNewModules 0
 	
@@ -450,12 +378,12 @@ $this proc destructor {} {
 
 $this proc savePreparation { args } {
 
-	global allConnectedConPorts emptyConPort
+	global allConnectedConPorts emptyConPorts
 	# saves the gui labes for creating initial gui after loading a network file,
 	# when $this is saved with the network file:
-	$this say "\nemptyConPort: $emptyConPort"
+	$this say "\nemptyConPorts: $emptyConPorts"
 	$this say "\nallConnectedConPorts: $allConnectedConPorts"
-	$this setVar savedLabels [expr [llength $allConnectedConPorts] + $emptyConPort]
+	$this setVar savedLabels [expr [llength $allConnectedConPorts] + $emptyConPorts]
 	
 }
 
@@ -465,13 +393,13 @@ $this proc compute {} {
 	
 	global moduleName surfaceGenModul
 	global surfaceViewModul
-	global extractSurface1Modul extractSurface2Modul
+	global extractSurfaceModul
 	global theExtractedSurfacesList theCompleteExtractedSurfacesList theArithmeticExtractedSurfacesList theResampleZExtractedSurfacesList
 	global alignPrincipalAxesModul arythmeticModul
 	global userLabListSelState
 
 	global allConnectedConPorts labList labCountList
-	global labSeparatorList lastLabSetArray labSetButtonList
+	global lastLabSetArray labSetList
 
 	# some status checks:
 	
@@ -488,11 +416,11 @@ $this proc compute {} {
 		
 	
 	# the following if/elsif statements construct most of the gui when user checks the toggles or connects modules
-	if {$myPolygonSurfaceToggleIsChecked == 1} {# "polygon surface" is checked
+	if { $myPolygonSurfaceToggleIsChecked == 1 } {# "polygon surface" is checked
 			
 		$this smoothingSeparator show
 		$this smoothing show
-		$this SmoothingSliderPort1 show
+		$this SmoothingSliderPort show
 		$this options show
 				
 				
@@ -500,11 +428,11 @@ $this proc compute {} {
 	
 		$this smoothingSeparator hide
 		$this smoothing hide
-		$this SmoothingSliderPort1 hide
+		$this SmoothingSliderPort hide
 		$this options hide
 		
 	}
-	if {$myVoxelDataToggleIsChecked == 1} {# "voxel data" is checked
+	if { $myVoxelDataToggleIsChecked == 1 } {# "voxel data" is checked
 			
 		$this voxelSeparator show
 		$this voxelOptions show
@@ -516,7 +444,7 @@ $this proc compute {} {
 		$this voxelOptions hide
 		
 	}
-	if {$myResampleZToggleIsChecked == 1} {# "resample z" is checked
+	if { $myResampleZToggleIsChecked == 1 } {# "resample z" is checked
 			
 		$this resampleSeparator show
 		$this resampleOptions show
@@ -531,8 +459,9 @@ $this proc compute {} {
 	
 	
 	# ********** actions **********
+	# enters only here when "Apply" button ($this action port) of $this is pressed:
 	
-	if {[$this action getValue] == 0} {# start calculation when action button is pressed and $this has a valid source
+	if { [$this action getValue] == 0 } {# start calculation when action button is pressed and $this has a valid source
 	
 		workArea startWorking
 	
@@ -542,26 +471,29 @@ $this proc compute {} {
 		workArea setProgressValue 0.4
 		
 		
-		# if toggle overwrite is set and list is not empty the next statement deletes all generated surfaces:
-		if {$myOverwriteToggleIsChecked == 1 && $theCompleteExtractedSurfacesList ne [list]} {
+		# if toggle "overwrite" is set and list is not empty the next statement deletes all previously by $this generated surfaces:
+		if { $myOverwriteToggleIsChecked == 1 && $theCompleteExtractedSurfacesList ne [list] } {
 		
-			foreach i $theCompleteExtractedSurfacesList {
-				remove $i
+			foreach surfaceToRemove $theCompleteExtractedSurfacesList {
+				remove $surfaceToRemove
 			}
 			lset theCompleteExtractedSurfacesList [list];# delete all list elements
 			$this say "old results overwritten"
 			
 		}
 		
-		if {$myPolygonSurfaceToggleIsChecked == 1} {
-		
+		# toogle "polygon surface" is checked then the selected labels will be extracted:
+		if { $myPolygonSurfaceToggleIsChecked == 1 } {
+			
+			set labfieldCount 0;# counts only how often the foreach loop has run (is needed for retrieving the correct index from labSetList -> see below)
+			
 			foreach labelfield $allConnectedConPorts {
 			
-				$this createModuleAndConnectIfOkToSource HxGMC $surfaceGenModul $labelfield;
+				$this createModuleAndConnectIfOkToSource HxGMC $surfaceGenModul $labelfield;# connect to labelfield
 				
 				$surfaceGenModul fire
-			
-				$surfaceGenModul setVar SmoothKernelSize [$this SmoothingSliderPort1 getValue];# SmoothKernelSize is a internal, but documented variable which i will allow to set by user in gui
+				# SmoothKernelSize is a internal, but documented variable which i made visible in the gui, because it is sometimes useful for better quality of polygon surface generation
+				$surfaceGenModul setVar SmoothKernelSize [$this SmoothingSliderPort getValue];
 				
 				# sets corresponding gui from $this for the SurfaceGen module:
 				$this setCorrespondingPort surfaceGenModul options 0;
@@ -571,19 +503,82 @@ $this proc compute {} {
 				$surfaceGenModul action setValue 0;# calculate the polygon surface
 				
 				$surfaceGenModul fire
+				
+				# connect a SurfaceView module for selecting the user specified labels in buffer to the newly generated surface field from surfaceGenModul:
+				$this createModuleAndConnectIfOkToSource HxDisplaySurface $surfaceViewModul [lindex [$surfaceGenModul downStreamConnections] 0 0]
+						
+				$surfaceViewModul compute
+				$surfaceViewModul buffer setValue 2;# make shure buffer is empty for the first run (hits botton "clear")
+				$surfaceViewModul compute
+				
+				
+				
+				set theExtractedSurfacesList [list]
+				set theLabSetInLabSetList [lindex $labSetList $labfieldCount];# the needed labSet port (e.g. labSet1, labSet2 ...)
+				
+				for { set i 0 } { $i < [$this $theLabSetInLabSetList getNum] } { incr i } {
+				
+					if { [$this $theLabSetInLabSetList getValue $i] == 1 } {
+						
+						set theLabel [$this $theLabSetInLabSetList getLabel $i]
+						
+						$surfaceViewModul materials setValueString $theLabel
+						$surfaceViewModul fire;# essential: all downStreamConnections must be updated!
+						$surfaceViewModul buffer setValue 0;# add to buffer (hit add button)
+						$surfaceViewModul compute
+						
+						# here happens the extraction of the surfaces:
+						$this createModuleAndConnectIfOkToSource HxViewBaseExtract $extractSurfaceModul $surfaceViewModul
+						$extractSurfaceModul action setValue 0
+						$extractSurfaceModul fire
+						
+						set newExtractedSurface [[lindex [$extractSurfaceModul downStreamConnections] 0 0] setLabel "$theLabel.surf"];# sets new name of the newly extracted surface (.surf is Amira standard for surface fields)
+						
+						lappend theExtractedSurfacesList $newExtractedSurface
+							
+						$newExtractedSurface master disconnect;# otherwise the newly created surface gets overriden in the next for loop iteration
+						$newExtractedSurface recompute
+						$newExtractedSurface cleanup
+						$newExtractedSurface fixOrientation;# helps maybe
+						# $newExtractedSurface makeOnePatch
+						$newExtractedSurface compute
+						$surfaceViewModul buffer setValue 2;# remove from buffer (hit remove button)
+						$surfaceViewModul compute
+						
+					}
+		
+				
+				}
+				
+				if { $theExtractedSurfacesList eq [list] } {# if list is empty echo warning, else process
+					$this say "no labels for extraction selected"
+				} else {
 					
-				$this createModuleAndConnectIfOkToSource HxDisplaySurface $surfaceViewModul [lindex [$surfaceGenModul downStreamConnections] 0 0];# connect a SurfaceView module for selecting the user specified labels in buffer
+					lset theCompleteExtractedSurfacesList [concat $theCompleteExtractedSurfacesList $theExtractedSurfacesList];# save all generated surfaces in theCompleteExtractedSurfacesList list
+					
+					$surfaceViewModul buffer setValue 1;# only get rid of the last selection in buffer which would otherwise be visible in the viewer
+					$surfaceViewModul compute
+					
+					# in this foreach iteration the surfaces in the theExtractedSurfacesList list will be further processed
+					foreach theSurface $theExtractedSurfacesList {
+						
+						$this createModuleAndConnectIfOkToSource HxAlignPrincipalAxes $alignPrincipalAxesModul $theSurface
+						$alignPrincipalAxesModul action setValue 0
+						$alignPrincipalAxesModul fire
+						
+					}
 				
-				$surfaceViewModul compute
-				$surfaceViewModul buffer setValue 2;# make shure buffer is empty (hits botton "clear"), before filling it again with getToggleValuesAndCreateSurfaces procedure
-				$surfaceViewModul compute
+				}
 				
-				$this getToggleValuesAndCreateSurfaces $this lastLabSetArray1 $surfaceViewModul materials 1;# runs main code
+				remove $alignPrincipalAxesModul;# AlignPrincipalAxes module is not needed any more.
+				set labfieldCount [incr labfieldCount]
 			}
+			
+			unset labfieldCount theLabSetInLabSetList;# not needed any more because all processing is done
 			
 		}
 		
-		if {$myVoxelDataToggleIsChecked == 1} {
+		if { $myVoxelDataToggleIsChecked == 1 } {
 		
 			lset theArithmeticExtractedSurfacesList [list]
 			
@@ -609,7 +604,7 @@ $this proc compute {} {
 						
 		}
 		
-		if {$myResampleZToggleIsChecked == 1} {
+		if { $myResampleZToggleIsChecked == 1 } {
 			
 		}
 		
@@ -617,9 +612,6 @@ $this proc compute {} {
 		workArea stopWorking
 					
 	}
-
-
-	# second port:
 
 	
 	
