@@ -68,8 +68,7 @@ $this proc checkModuleStateAndSetVariables {} {
 			
 			for { set x 0 } { $x < [$this labSet$i getNum] } { incr x } {
 				set lastLabSetArray([expr $x + 1]) [$this labSet$i getLabel $x]
-			}
-			set userLabListSelState($i) [$this labSet$i getState]			
+			}			
 			lappend labList [array get lastLabSetArray]
 			
 		}
@@ -78,6 +77,7 @@ $this proc checkModuleStateAndSetVariables {} {
 			lappend allConnectedConPorts [$this [lindex [$this connectionPorts] $i] source]
 			lappend labCountList [[$this labFieldPortCon$i source] parameters Materials nBundles]
 			lappend labSetList labSet$i
+			set userLabListSelState($i) [$this labSet$i getState]
 
 			# show the ports when connected to label field:
 			$this labSeparator$i show
@@ -168,7 +168,9 @@ $this proc createConPortButtonsToggles { i } {
 	$this newPortToggleList labSet$i 0;# only init, right toggles numbers will be determind when label field is connected
 	$this labSet$i setLabel "Label set $i"
 	
-	# build stings for setCmc commands, because $toEval has to be evaluated before it is given as argument for setCmd
+	# build strings for setCmc commands, because $i has to be evaluated before it is given as argument for setCmd
+	# every new botton set will get a individual procedure assigned (which will be executed every time a "None" or "All" botton is pressed),
+	# because $i changes with every run of createConPortButtonsToggles procedure
 	eval "\$this labSetSelBottons\$i setCmd 0 \{ \$this bottonNonePressed " "$i \}"
 	eval "\$this labSetSelBottons\$i setCmd 1 \{ \$this bottonAllPressed " "$i \}"
 	
@@ -250,7 +252,7 @@ $this proc createModuleAndConnectIfOkToSource { moduleType moduleName sourceName
 }
 
 # switches the given module port remotely from $this ($this must have a corresponding (i.e. same) port!)
-# it works like the amira built in port connect "<modulename 1> <P0 name> connect < modulename 2> [<P1 name>]" exept that it works (e.g. there are some bugs with menu entry numberation in amira modules)
+# it works like the amira built in port connect "<modulename 1> <P0 name> connect < modulename 2> [<P1 name>]" exept, that it works (e.g. there are some bugs with menu entry numeration in amira modules)
 $this proc setCorrespondingPort { module port { portIndex 0 } } {
 
 	upvar #0 $module myModule
@@ -262,9 +264,9 @@ $this proc setCorrespondingPort { module port { portIndex 0 } } {
 	$this fire;# infinit loop in Amira when here no update of all downstream modules - crashes most of the time Amira
 	
 	switch -exact [$this $port getTypeId] {
-		HxPortMultiMenu {$myModule $port setValueString $portIndex [$this $port getLabel [$this $port getValue $portIndex]]}
-		HxPortToggleList {$myModule $port setValue  $portIndex [$this $port getValue $portIndex]}
-		default { $this say "could not find a corresponding port" }
+		HxPortMultiMenu { $myModule $port setValueString $portIndex [$this $port getLabel [$this $port getValue $portIndex]] };# setValueString is more robust than index counting with setValue
+		HxPortToggleList { $myModule $port setValue  $portIndex [$this $port getValue $portIndex] }
+		default { $this say "proc setCorrespondingPort: could not find a corresponding port" }
 	}
 	
 	$myModule compute
@@ -582,8 +584,8 @@ $this proc compute {} {
 		
 			lset theArithmeticExtractedSurfacesList [list]
 			
-			$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$allConnectedConPorts1 ImageData source];# connect a Arithmetic module to the voxelfield which connects to the labelfield
-			$arythmeticModul inputB connect $allConnectedConPorts1
+			$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$allConnectedConPorts ImageData source];# connect a Arithmetic module to the voxelfield which connects to the labelfield
+			$arythmeticModul inputB connect $allConnectedConPorts
 			
 			
 			for {set i 0} {$i < [llength $userLabListSelState]} {incr i} {
@@ -591,7 +593,7 @@ $this proc compute {} {
 				$this testBreak;# maybe calculation here will take long
 				
 				$arythmeticModul expr setValue "\(A*\(B==[lindex $userLabListSelState $i 1]\)\)";# sets the extraction expression
-				$arythmeticModul doIt setValue 0;
+				$arythmeticModul doIt setValue 0;# sometimes it is called doIt, sometimes it is called action for running a amira module, so always look for right command!
 				$arythmeticModul fire
 
 				set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[lindex $userLabListSelState $i 0]"];# sets label for newly created voxelfield
