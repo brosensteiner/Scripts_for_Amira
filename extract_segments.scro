@@ -13,9 +13,8 @@ set theCompleteExtractedSurfacesList [list];# keeps track of all extracted surfa
 
 array set userLabListSelState {};# array for the selection state of user selected toggles 
 array set lastLabSetArray {};# array of all labels in last labSet
-set labList [list];# list of all lab gui toggles
 set labCountList [list];# count list of all lab gui toogles
-set allConnectedConPorts [list];# list of all connection ports which have a source
+set allConnectedLabFields [list];# list of all connection ports which have a source
 set labSetList [list];# list of all lab sets which are in gui
 set userResultSelState [list]
 set userSaveState [list]
@@ -44,10 +43,11 @@ $this proc hasPort {modul port} {
 	if { [lsearch [$myModule allPorts] $port] != -1 } { return 1 } else { return 0 }
 }
 
-# function which checks on some $this states and saves some typing:
+# function which checks on some $this states, so every time something happens with $this
+# it knows it´s actual state and it can be asked about it:
 $this proc checkModuleStateAndSetVariables {} {
 
-	global allConnectedConPorts labList labCountList
+	global allConnectedLabFields labCountList
 	global lastLabSetArray userLabListSelState labSetList emptyConPorts
 	
 	$this fire
@@ -55,8 +55,7 @@ $this proc checkModuleStateAndSetVariables {} {
 	# first make all empty:
 	array set userLabListSelState {}
 	array set lastLabSetArray {}
-	set allConnectedConPorts [list]
-	set labList [list]
+	set allConnectedLabFields [list]
 	set labCountList [list]
 	set labSetList [list]
 	set emptyConPorts 0
@@ -64,20 +63,16 @@ $this proc checkModuleStateAndSetVariables {} {
 	# and then update again the lists/arrays:
 	for { set i 1 } { $i < [llength [$this connectionPorts]] } { incr i } {
 	
-		if { [$this hasPort this labSeparator$i] == 1 } {
-			
-			for { set x 0 } { $x < [$this labSet$i getNum] } { incr x } {
-				set lastLabSetArray([expr $x + 1]) [$this labSet$i getLabel $x]
-			}			
-			lappend labList [array get lastLabSetArray]
-			
-		}
 		if { [$this  [lindex [$this connectionPorts] $i] source] ne "" } {
 				
-			lappend allConnectedConPorts [$this [lindex [$this connectionPorts] $i] source]
+			lappend allConnectedLabFields [$this [lindex [$this connectionPorts] $i] source]
 			lappend labCountList [[$this labFieldPortCon$i source] parameters Materials nBundles]
 			lappend labSetList labSet$i
 			set userLabListSelState($i) [$this labSet$i getState]
+			
+			for { set x 0 } { $x < [$this labSet$i getNum] } { incr x } {
+				set lastLabSetArray([expr $x + 1]) [$this labSet$i getLabel $x]
+			}
 
 			# show the ports when connected to label field:
 			$this labSeparator$i show
@@ -86,8 +81,7 @@ $this proc checkModuleStateAndSetVariables {} {
 			
 		} else {
 			
-			# increment emptyConPorts:
-			set emptyConPorts [incr emptyConPorts]
+			set emptyConPorts [incr emptyConPorts];# count every empty connection port
 			
 			# hide the ports when not connected to label field:
 			$this labSeparator$i hide
@@ -120,9 +114,8 @@ $this proc checkModuleStateAndSetVariables {} {
 	# printing $this info (only for debugging):
 	$this say "\nuserLabListSelState: [array get userLabListSelState]"
 	$this say "lastLabSetArray: [array get lastLabSetArray]"
-	$this say "allConnectedConPorts: $allConnectedConPorts"
+	$this say "allConnectedLabFields: $allConnectedLabFields"
 	$this say "emptyConPorts: $emptyConPorts"
-	$this say "labList: $labList"
 	$this say "labCountList: $labCountList"
 	$this say "labSetList: $labSetList"
 	$this say "userResultSelState: $userResultSelState"
@@ -153,7 +146,7 @@ $this proc bottonAllPressed { num } {
 # argument i is the number of portname
 $this proc createConPortButtonsToggles { i } {
 
-	global allConnectedConPorts labList labCountList
+	global allConnectedLabFields labCountList
 	global lastLabSetArray labSetList
 	global userLabListSelState userResultSelState userSaveState emptyConPorts
 		
@@ -186,7 +179,7 @@ $this proc createConPortButtonsToggles { i } {
 # argument i is the number of portname
 $this proc deleteConPortButtonsToggles { i } {
 
-	global allConnectedConPorts labList labCountList
+	global allConnectedLabFields labCountList
 	global lastLabSetArray labSetList
 	global userLabListSelState userResultSelState userSaveState emptyConPorts
 		
@@ -204,18 +197,18 @@ $this proc deleteConPortButtonsToggles { i } {
 # (is a smarter logic that for example the amira´s own ExtractSurface module has)
 $this proc conPortLogic {} {
 
-	global emptyConPorts labList
+	global emptyConPorts
 	
 	# create new connecton port when the last connecton port in the list has connected a label field:
 	if { [$this [lindex [$this connectionPorts] end] source] ne "" && $emptyConPorts == 0 } {
 		
-		$this createConPortButtonsToggles [expr [llength $labList] + 1];
+		$this createConPortButtonsToggles [llength [$this connectionPorts]];
 	}
 	# delete all connection ports beginning at the end until the first connction port with a connected label field is found:
 	for { set i 0 } { $i < [llength [$this connectionPorts]] } { incr i } {
 	
 		if { [$this [lindex [$this connectionPorts] end] source] eq "" && $emptyConPorts > 1 } {
-			$this deleteConPortButtonsToggles [llength $labList];
+			$this deleteConPortButtonsToggles [expr [llength [$this connectionPorts]] - 1];
 		}
 		
 	}
@@ -279,7 +272,7 @@ $this proc setCorrespondingPort { module port { portIndex 0 } } {
 #
 $this proc constructor {} {
 
-	global allConnectedConPorts labList labCountList
+	global allConnectedLabFields labCountList
 	global lastLabSetArray labSetList
 	global userLabListSelState userResultSelState userSaveState
 
@@ -356,7 +349,7 @@ $this proc destructor {} {
 	
 	global surfaceGenModul arythmeticModul
 	global surfaceViewModul extractSurfaceModul
-	global userLabListSelState lastLabSetArray allConnectedConPorts labList labCountList
+	global userLabListSelState lastLabSetArray allConnectedLabFields labCountList
 	global labSetList emptyConPorts
 
 	# removes the modules which the script eventually created when $this gets deleted:
@@ -368,8 +361,7 @@ $this proc destructor {} {
 	# unset all global variables:
 	unset userLabListSelState
 	unset lastLabSetArray
-	unset allConnectedConPorts
-	unset labList
+	unset allConnectedLabFields
 	unset labCountList
 	unset labSetList
 	unset emptyConPorts
@@ -380,12 +372,12 @@ $this proc destructor {} {
 
 $this proc savePreparation { args } {
 
-	global allConnectedConPorts emptyConPorts
+	global allConnectedLabFields emptyConPorts
 	# saves the gui labes for creating initial gui after loading a network file,
 	# when $this is saved with the network file:
 	$this say "\nemptyConPorts: $emptyConPorts"
-	$this say "\nallConnectedConPorts: $allConnectedConPorts"
-	$this setVar savedLabels [expr [llength $allConnectedConPorts] + $emptyConPorts]
+	$this say "\nallConnectedLabFields: $allConnectedLabFields"
+	$this setVar savedLabels [expr [llength $allConnectedLabFields] + $emptyConPorts]
 	
 }
 
@@ -400,7 +392,7 @@ $this proc compute {} {
 	global alignPrincipalAxesModul arythmeticModul
 	global userLabListSelState
 
-	global allConnectedConPorts labList labCountList
+	global allConnectedLabFields labCountList
 	global lastLabSetArray labSetList
 
 	# some status checks:
@@ -489,7 +481,9 @@ $this proc compute {} {
 			
 			set labfieldCount 0;# counts only how often the foreach loop has run (is needed for retrieving the correct index from labSetList -> see below)
 			
-			foreach labelfield $allConnectedConPorts {
+			foreach labelfield $allConnectedLabFields {
+			
+				$this testBreak
 			
 				$this createModuleAndConnectIfOkToSource HxGMC $surfaceGenModul $labelfield;# connect to labelfield
 				
@@ -516,13 +510,13 @@ $this proc compute {} {
 				
 				
 				set theExtractedSurfacesList [list]
-				set theLabSetInLabSetList [lindex $labSetList $labfieldCount];# the needed labSet port (e.g. labSet1, labSet2 ...)
+				set theLabSetFromLabSetList [lindex $labSetList $labfieldCount];# the needed labSet port (e.g. labSet1, labSet2 ...)
 				
-				for { set i 0 } { $i < [$this $theLabSetInLabSetList getNum] } { incr i } {
+				for { set i 0 } { $i < [$this $theLabSetFromLabSetList getNum] } { incr i } {
 				
-					if { [$this $theLabSetInLabSetList getValue $i] == 1 } {
+					if { [$this $theLabSetFromLabSetList getValue $i] == 1 } {
 						
-						set theLabel [$this $theLabSetInLabSetList getLabel $i]
+						set theLabel [$this $theLabSetFromLabSetList getLabel $i]
 						
 						$surfaceViewModul materials setValueString $theLabel
 						$surfaceViewModul fire;# essential: all downStreamConnections must be updated!
@@ -576,39 +570,56 @@ $this proc compute {} {
 				set labfieldCount [incr labfieldCount]
 			}
 			
-			unset labfieldCount theLabSetInLabSetList;# not needed any more because all processing is done
+			unset labfieldCount theLabSetFromLabSetList;# not needed any more because all processing is done
 			
 		}
 		
 		if { $myVoxelDataToggleIsChecked == 1 } {
 		
 			lset theArithmeticExtractedSurfacesList [list]
+			set labfieldCount 0
 			
-			$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$allConnectedConPorts ImageData source];# connect a Arithmetic module to the voxelfield which connects to the labelfield
-			$arythmeticModul inputB connect $allConnectedConPorts
-			
-			
-			for {set i 0} {$i < [llength $userLabListSelState]} {incr i} {
-			
-				$this testBreak;# maybe calculation here will take long
+			foreach labelfield $allConnectedLabFields {
 				
-				$arythmeticModul expr setValue "\(A*\(B==[lindex $userLabListSelState $i 1]\)\)";# sets the extraction expression
-				$arythmeticModul doIt setValue 0;# sometimes it is called doIt, sometimes it is called action for running a amira module, so always look for right command!
-				$arythmeticModul fire
+				$this testBreak
+				
+				$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$labelfield ImageData source];# connect a Arithmetic module to the voxelfield which connects to the labelfield
+				$arythmeticModul inputB connect $labelfield;# connect inputB of Arithmetic module to the labelfield
+			
+				set theLabSetFromLabSetList [lindex $labSetList $labfieldCount];# the needed labSet port (e.g. labSet1, labSet2 ...)
+				
+				for { set i 0 } {$i < [$this $theLabSetFromLabSetList getNum] } { incr i } {
+			
+					$this testBreak;# maybe calculation here will take long
+					
+					if { [$this $theLabSetFromLabSetList getValue $i] == 1 } {
+					
+						$arythmeticModul expr setValue "\(A*\(B==$i\)\)";# sets the extraction expression
+						$arythmeticModul doIt setValue 0;# sometimes it is called doIt, sometimes it is called action for running a amira module, so always look for right command!
+						$arythmeticModul fire
 
-				set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[lindex $userLabListSelState $i 0]"];# sets label for newly created voxelfield
-				$theResultFromArithmeticCalcName master disconnect;# sisconnect, otherwise the result from arithmetic module will be overridden
+						set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[$labelfield parameters Materials index $i]"];# sets label for newly created voxelfield
+						$theResultFromArithmeticCalcName master disconnect;# disconnect, otherwise the result from arithmetic module will be overridden
 				
-				# append extracted voxel field to global lists:
-				lappend theCompleteExtractedSurfacesList $theResultFromArithmeticCalcName;
-				lappend theArithmeticExtractedSurfacesList $theResultFromArithmeticCalcName;
-			}
+						# append extracted voxel field to global lists:
+						lappend theCompleteExtractedSurfacesList $theResultFromArithmeticCalcName;
+						lappend theArithmeticExtractedSurfacesList $theResultFromArithmeticCalcName;
 						
+					}
+					
+				}
+				
+				set labfieldCount [incr labfieldCount]	
+			}
+			
+			unset labfieldCount theLabSetFromLabSetList
+			
 		}
 		
 		if { $myResampleZToggleIsChecked == 1 } {
 			
 		}
+		
 		
 		workArea setProgressValue 1
 		workArea stopWorking
@@ -618,12 +629,12 @@ $this proc compute {} {
 	
 	
 	# completion of compute procedure:
-#	if {$allConnectedConPorts($i) eq "" && $allConnectedConPorts2 eq "" && [$this getVar runCounter] > 0} {
-#			$this say "nothing to process - no label field connected"
-#		}
+	if {$allConnectedLabFields eq "" && [$this getVar runCounter] > 0} {
+			$this say "nothing to process - no label field connected"
+	}
 #	if {[lrange $resultSelectionState 3 5] eq [list 0 0 0] && [$this getVar runCounter] > 0} {
 #			$this say "nothing to process - choose on ore more result options"
-#		}
+#	}
 		
 	$this setVar computeCounter [expr [$this getVar computeCounter] + 1];# computeCounter will get +1 for every run from compute proc
 }
