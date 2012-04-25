@@ -257,10 +257,10 @@ $this proc setCorrespondingPort { module port { portIndex 0 } } {
 	$this fire;# infinit loop in Amira when here no update of all downstream modules - crashes most of the time Amira
 	
 	switch -exact [$this $port getTypeId] {
-		HxPortMultiMenu { $myModule $port setValueString $portIndex [$this $port getLabel [$this $port getValue $portIndex]] };# setValueString is more robust than index counting with setValue
+		HxPortMultiMenu { $myModule $port setValueString $portIndex [$this $port getLabel [$this $port getValue $portIndex]] }
 		HxPortToggleList { $myModule $port setValue  $portIndex [$this $port getValue $portIndex] }
 		default { $this say "proc setCorrespondingPort: could not find a corresponding port" }
-	}
+	};# setValueString is more robust than index counting with setValue
 	
 	$myModule compute
 
@@ -334,7 +334,7 @@ $this proc constructor {} {
 	
 	# when savedLabes is not defined it will with this if statement (will only be the case at first loading $this,
 	# afterwards it is always defined -> see proc savePreparation):
-	if { [$this hasVar savedLabels] == 0} {# hasVar is undocumented in Amira ducomentation, but indispensable ...
+	if { ![$this hasVar savedLabels] } {# hasVar is undocumented in Amira ducomentation, but indispensable ...
 		 $this setVar savedLabels 1
 	}
 	# this loop creates the needed dynamic gui elements (savedLabels global variable is the counter for how many will be created):
@@ -410,7 +410,7 @@ $this proc compute {} {
 		
 	
 	# the following if/elsif statements construct most of the gui when user checks the toggles or connects modules
-	if { $myPolygonSurfaceToggleIsChecked == 1 } {# "polygon surface" is checked
+	if { $myPolygonSurfaceToggleIsChecked } {# "polygon surface" is checked
 			
 		$this smoothingSeparator show
 		$this smoothing show
@@ -426,7 +426,7 @@ $this proc compute {} {
 		$this options hide
 		
 	}
-	if { $myVoxelDataToggleIsChecked == 1 } {# "voxel data" is checked
+	if { $myVoxelDataToggleIsChecked } {# "voxel data" is checked
 			
 		$this voxelSeparator show
 		$this voxelOptions show
@@ -438,7 +438,7 @@ $this proc compute {} {
 		$this voxelOptions hide
 		
 	}
-	if { $myResampleZToggleIsChecked == 1 } {# "resample z" is checked
+	if { $myResampleZToggleIsChecked } {# "resample z" is checked
 			
 		$this resampleSeparator show
 		$this resampleOptions show
@@ -569,14 +569,12 @@ $this proc compute {} {
 				remove $alignPrincipalAxesModul;# AlignPrincipalAxes module is not needed any more.
 				set labfieldCount [incr labfieldCount]
 			}
-			
-			unset labfieldCount theLabSetFromLabSetList;# not needed any more because all processing is done
-			
+						
 		}
 		
 		if { $myVoxelDataToggleIsChecked == 1 } {
 		
-			lset theArithmeticExtractedSurfacesList [list]
+			set theArithmeticExtractedSurfacesList [list]
 			set labfieldCount 0
 			
 			foreach labelfield $allConnectedLabFields {
@@ -612,7 +610,6 @@ $this proc compute {} {
 				set labfieldCount [incr labfieldCount]	
 			}
 			
-			unset labfieldCount theLabSetFromLabSetList
 			
 		}
 		
@@ -620,6 +617,7 @@ $this proc compute {} {
 			
 		}
 		
+		if { [info exists labfieldCount] } { unset labfieldCount theLabSetFromLabSetList }
 		
 		workArea setProgressValue 1
 		workArea stopWorking
