@@ -12,7 +12,7 @@ $this setVar computeCounter 0
 set theExtractedSurfacesList [list];# keeps track of surfaces of the current run
 set theArithmeticExtractedSurfacesList [list];# keeps track of all extracted surfaces from arithmetic runs
 set theResampleZExtractedSurfacesList [list];# keeps track of all extracted surfaces from resample z runs
-set theCompleteExtractedSurfacesList [list];# keeps track of all extracted surfaces from all runs
+set theCompleteExtractedList [list];# keeps track of all extracted surfaces from all runs
 
 array set userLabListSelState {};# array for the selection state of user selected toggles 
 array set lastLabSetArray {};# array of all labels in last labSet
@@ -52,6 +52,7 @@ $this proc checkModuleStateAndSetVariables {} {
 
 	global allConnectedLabFields labCountList
 	global lastLabSetArray userLabListSelState labSetList emptyConPorts
+	global userResultSelState userSaveState
 	
 	$this fire
 	
@@ -95,9 +96,9 @@ $this proc checkModuleStateAndSetVariables {} {
 		
 	}
 	
-	# setting the static gui elements:
+	# saving states for the static gui elements:
 	set userResultSelState [$this result getState]
-	set userSaveState [$this save getState]
+	set userSaveState [$this saveResults getState]
 	
 	# this loop sets the labels for each dynamic toggle in labSet ports:
 	for { set x 1 } { $x < [llength [$this connectionPorts]] } { incr x } {
@@ -181,10 +182,6 @@ $this proc createConPortButtonsToggles { i } {
 # procedure deletes gui elements (separator, bottons, toggles) for a connected lab field
 # argument i is the number of portname
 $this proc deleteConPortButtonsToggles { i } {
-
-	global allConnectedLabFields labCountList
-	global lastLabSetArray labSetList
-	global userLabListSelState userResultSelState userSaveState emptyConPorts
 		
 	$this deletePort labFieldPortCon$i
 	$this deletePort labSeparator$i
@@ -293,9 +290,9 @@ $this proc constructor {} {
 	$this result setLabel 2 "voxel data"
 	$this result setLabel 3 "resample z"
 	
-	$this newPortFilename save
-	$this save setLabel "Save result"
-	$this save setMode 4
+	$this newPortFilename saveResults
+	$this saveResults setLabel "Save result"
+	$this saveResults setMode 3
 	
 	# creates Action Button port
 	$this newPortDoIt action
@@ -327,8 +324,9 @@ $this proc constructor {} {
 	
 	# recreates the options port from Arithmetic
 	$this newPortSeparator voxelSeparator
-	$this newPortToggleList voxelOptions 2
-	$this voxelOptions setLabel "Extraction options"
+	$this newPortToggleList voxelOptions 1
+	$this voxelOptions setLabel "Voxel options"
+	$this voxelOptions setLabel 0 "align principal axis"
 	
 	# creates resample z options
 	$this newPortSeparator resampleSeparator
@@ -389,20 +387,21 @@ $this proc compute {} {
 	global moduleName surfaceGenModul
 	global surfaceViewModul
 	global extractSurfaceModul
-	global theExtractedSurfacesList theCompleteExtractedSurfacesList theArithmeticExtractedSurfacesList theResampleZExtractedSurfacesList
+	global theExtractedSurfacesList theCompleteExtractedList theArithmeticExtractedSurfacesList theResampleZExtractedSurfacesList
 	global alignPrincipalAxesModul arythmeticModul
-	global userLabListSelState
+	global userLabListSelState userSaveState
 
 	global allConnectedLabFields labCountList
 	global lastLabSetArray labSetList
 
-	# some status checks:
-	
-	set myOverwriteToggleIsChecked [$this result getValue 0]
-	set myPolygonSurfaceToggleIsChecked [$this result getValue 1]
-	set myVoxelDataToggleIsChecked [$this result getValue 2]
-	set myResampleZToggleIsChecked [$this result getValue 3]
+	# some status checks on toogle bottons:
+	set overwriteToggleIsChecked [$this result getValue 0]
+	set polygonSurfaceToggleIsChecked [$this result getValue 1]
+	set voxelDataToggleIsChecked [$this result getValue 2]
+	set resampleZToggleIsChecked [$this result getValue 3]
 	set resultSelectionState [$this result getState]
+	
+	set voxelOptionAlignPrincipalAxisIsChecked [$this voxelOptions getValue 0]
 	
 	$this checkModuleStateAndSetVariables;
 	
@@ -410,7 +409,7 @@ $this proc compute {} {
 	
 	
 	# the following if/elsif statements construct most of the gui when user checks the toggles or connects modules
-	if { $myPolygonSurfaceToggleIsChecked } {# "polygon surface" is checked
+	if { $polygonSurfaceToggleIsChecked } {# "polygon surface" is checked
 			
 		$this smoothingSeparator show
 		$this smoothing show
@@ -426,7 +425,7 @@ $this proc compute {} {
 		$this options hide
 		
 	}
-	if { $myVoxelDataToggleIsChecked } {# "voxel data" is checked
+	if { $voxelDataToggleIsChecked } {# "voxel data" is checked
 			
 		$this voxelSeparator show
 		$this voxelOptions show
@@ -438,7 +437,7 @@ $this proc compute {} {
 		$this voxelOptions hide
 		
 	}
-	if { $myResampleZToggleIsChecked } {# "resample z" is checked
+	if { $resampleZToggleIsChecked } {# "resample z" is checked
 			
 		$this resampleSeparator show
 		$this resampleOptions show
@@ -466,18 +465,17 @@ $this proc compute {} {
 		
 		
 		# if toggle "overwrite" is set and list is not empty the next statement deletes all previously by $this generated surfaces:
-		if { $myOverwriteToggleIsChecked == 1 && $theCompleteExtractedSurfacesList ne [list] } {
+		if { $overwriteToggleIsChecked == 1 && $theCompleteExtractedList ne [list] } {
 		
-			foreach surfaceToRemove $theCompleteExtractedSurfacesList {
+			foreach surfaceToRemove $theCompleteExtractedList {
 				remove $surfaceToRemove
 			}
-			lset theCompleteExtractedSurfacesList [list];# delete all list elements
+			lset theCompleteExtractedList [list];# delete all list elements
 			$this say "old results overwritten"
 			
 		}
 		
-		# toogle "polygon surface" is checked then the selected labels will be extracted:
-		if { $myPolygonSurfaceToggleIsChecked } {
+		if { $polygonSurfaceToggleIsChecked } {
 			
 			set labfieldCount 0;# counts only how often the foreach loop has run (is needed for retrieving the correct index from labSetList -> see below)
 			
@@ -550,7 +548,7 @@ $this proc compute {} {
 					$this say "no labels for extraction selected"
 				} else {
 					
-					lset theCompleteExtractedSurfacesList [concat $theCompleteExtractedSurfacesList $theExtractedSurfacesList];# save all generated surfaces in theCompleteExtractedSurfacesList list
+					lset theCompleteExtractedList [concat $theCompleteExtractedList $theExtractedSurfacesList];# save all generated surfaces in theCompleteExtractedList list
 					
 					$surfaceViewModul buffer setValue 1;# only get rid of the last selection in buffer which would otherwise be visible in the viewer
 					$surfaceViewModul compute
@@ -572,7 +570,7 @@ $this proc compute {} {
 						
 		}
 		
-		if { $myVoxelDataToggleIsChecked } {
+		if { $voxelDataToggleIsChecked } {
 		
 			set theArithmeticExtractedSurfacesList [list]
 			set labfieldCount 0
@@ -596,15 +594,20 @@ $this proc compute {} {
 						$arythmeticModul doIt setValue 0;# sometimes it is called "doIt", sometimes it is called "action" for running a amira module, so always look for right command!
 						$arythmeticModul fire
 
-						set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[$labelfield parameters Materials index $i]"];# sets label for newly created voxelfield
+						set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[$labelfield parameters Materials index $i].am"];# sets label for newly created voxelfield (.am is Amira standard fileformat for data objects)
 						$theResultFromArithmeticCalcName master disconnect;# disconnect, otherwise the result from arithmetic module will be overridden
 				
 						# append extracted voxel field to global lists:
-						lappend theCompleteExtractedSurfacesList $theResultFromArithmeticCalcName;
+						lappend theCompleteExtractedList $theResultFromArithmeticCalcName;
 						lappend theArithmeticExtractedSurfacesList $theResultFromArithmeticCalcName;
 						
 					}
-					
+					if { $voxelOptionAlignPrincipalAxisIsChecked } {
+						
+						
+						
+					}
+	
 				}
 				
 				set labfieldCount [incr labfieldCount]	
@@ -613,24 +616,45 @@ $this proc compute {} {
 			
 		}
 		
-		if { $myResampleZToggleIsChecked } {
+		if { $resampleZToggleIsChecked } {
 		
 			
 			
 		}
 		
+		# saving routine:
+		echo "here begins save routine [$this saveResults getLabel] (userSaveState): $userSaveState"
 		
-		# completions:
+		if { $userSaveState ne "" } {# is user has typed something in the saveResults port
+			
+			if { [file isdirectory $userSaveState] } {
+			
+				foreach result $theCompleteExtractedList {
+					
+					switch -exact [$result getTypeId] {
+						HxUniformScalarField3 { $result save "Amiramesh ascii" $userSaveState/$result }
+						HxSurface { $result save "HxSurface binary" $userSaveState/$result }
+					}
+
+				} 
+				
+			} else {
+				$this say "whatever you typed in the \"[$this saveResults getLabel]\" field ... , it is not a valid directory name, so nothing has been saved"
+			}
+			
+		}
+		
+		
 		if { [info exists labfieldCount] } { unset labfieldCount theLabSetFromLabSetList }
 		
+		# user info which will be shown in the console:
 		if {$allConnectedLabFields eq "" && [$this getVar runCounter] > 0} {
 					$this say "nothing to process - no label field connected"
 		}
 		if {[lrange $resultSelectionState 3 5] eq [list 0 0 0] && [$this getVar runCounter] > 0} {
 				$this say "nothing to process - choose on ore more result options"
 		}
-		# searches if user has selected at least one label in the label sets:
-		foreach { key value } [array get userLabListSelState] {
+		foreach { key value } [array get userLabListSelState] {# searches if user has selected at least one label in the label sets
 				
 			regexp {(?:values\s\d)(.+)(?:isTristate)} $value myMatchedRegexp myMatchedRegexpSub
 			if { ![regexp {1} $myMatchedRegexpSub] && [$this getVar runCounter] > 0 } {
