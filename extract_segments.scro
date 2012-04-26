@@ -24,10 +24,10 @@ set userSaveState [list]
 set emptyConPorts 0;# for counting empty connection ports of $this
 
 # i dont´t want name clashes with user given names for modules
-# so here are the hopefully cryptic enough generated names for the modules $this maybe creates
+# so here are the hopefully cryptic enough generated names for the modules $this maybe creates:
 set surfaceGenModul XxXSurfaceGen_${moduleName}
 set surfaceViewModul XxXSurfaceView_${moduleName}
-set extractSurfaceModul XxXextractSurface1_${moduleName}
+set extractSurfaceModul XxXextractSurface_${moduleName}
 set alignPrincipalAxesModul XxXalignPrincipalAxes_${moduleName}
 set arythmeticModul XxXArithmetic_${moduleName}
 
@@ -333,6 +333,7 @@ $this proc constructor {} {
 	$this newPortToggleList resampleOptions 2
 	$this resampleOptions setLabel "Resample options"
 	
+		
 	# when savedLabes is not defined it will with this if statement (will only be the case at first loading $this,
 	# afterwards it is always defined -> see proc savePreparation):
 	if { ![$this hasVar savedLabels] } {# hasVar is undocumented in Amira ducomentation, but indispensable ...
@@ -354,18 +355,17 @@ $this proc destructor {} {
 	global labSetList emptyConPorts
 
 	# removes the modules which the script eventually created when $this gets deleted:
-	if { [lsearch [all] $surfaceGenModul] != -1 } { remove $surfaceGenModul }
-	if { [lsearch [all] $surfaceViewModul] != -1 } { remove $surfaceViewModul }
-	if { [lsearch [all] $extractSurfaceModul] != -1 } { remove $extractSurfaceModul }
-	if { [lsearch [all] $arythmeticModul] != -1 } { remove $arythmeticModul }
+	if { [lsearch [all] $surfaceGenModul] != -1 }		{ remove $surfaceGenModul }
+	if { [lsearch [all] $surfaceViewModul] != -1 }		{ remove $surfaceViewModul }
+	if { [lsearch [all] $extractSurfaceModul] != -1 }	{ remove $extractSurfaceModul }
+	if { [lsearch [all] $arythmeticModul] != -1 }		{ remove $arythmeticModul }
 	
 	# unset all global variables:
-	unset userLabListSelState
-	unset lastLabSetArray
-	unset allConnectedLabFields
-	unset labCountList
-	unset labSetList
-	unset emptyConPorts
+	if { [info exists userLabListSelState] }			{ unset userLabListSelState }
+	if { [info exists allConnectedLabFields] }			{ unset allConnectedLabFields }
+	if { [info exists labCountList] }					{ unset labCountList }
+	if { [info exists labSetList] }						{ unset labSetList }
+	if { [info exists emptyConPorts] }					{ unset emptyConPorts }
 	
 	set hideNewModules 0
 	
@@ -526,7 +526,7 @@ $this proc compute {} {
 						$extractSurfaceModul action setValue 0
 						$extractSurfaceModul fire
 						
-						set newExtractedSurface [[lindex [$extractSurfaceModul downStreamConnections] 0 0] setLabel "$theLabel.surf"];# sets new name of the newly extracted surface (.surf is Amira standard for surface fields)
+						set newExtractedSurface [[$extractSurfaceModul getResult] setLabel "$theLabel.surf"];# sets new name of the newly extracted surface (.surf is Amira standard for surface fields)
 						
 						lappend theExtractedSurfacesList $newExtractedSurface
 							
@@ -579,7 +579,7 @@ $this proc compute {} {
 				
 				$this testBreak
 				
-				$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$labelfield ImageData source];# connect a Arithmetic module to the voxelfield which connects to the labelfield
+				$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$labelfield getControllingData];# connect a Arithmetic module to the voxelfield which connects to the labelfield
 				$arythmeticModul inputB connect $labelfield;# connect inputB of Arithmetic module to the labelfield
 			
 				set theLabSetFromLabSetList [lindex $labSetList $labfieldCount];# the needed labSet port (e.g. labSet1, labSet2 ...)
@@ -594,7 +594,7 @@ $this proc compute {} {
 						$arythmeticModul doIt setValue 0;# sometimes it is called "doIt", sometimes it is called "action" for running a amira module, so always look for right command!
 						$arythmeticModul fire
 
-						set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[$labelfield parameters Materials index $i].am"];# sets label for newly created voxelfield (.am is Amira standard fileformat for data objects)
+						set theResultFromArithmeticCalcName [[$arythmeticModul getResult] setLabel "[$labelfield parameters Materials index $i].am"];# sets label for newly created voxelfield (.am is Amira standard fileformat for data objects)
 						$theResultFromArithmeticCalcName master disconnect;# disconnect, otherwise the result from arithmetic module will be overridden
 				
 						# append extracted voxel field to global lists:
@@ -613,7 +613,6 @@ $this proc compute {} {
 				set labfieldCount [incr labfieldCount]	
 			}
 			
-			
 		}
 		
 		if { $resampleZToggleIsChecked } {
@@ -622,9 +621,7 @@ $this proc compute {} {
 			
 		}
 		
-		# saving routine:
-		echo "here begins save routine [$this saveResults getLabel] (userSaveState): $userSaveState"
-		
+		# saving routine:		
 		if { $userSaveState ne "" } {# is user has typed something in the saveResults port
 			
 			if { [file isdirectory $userSaveState] } {
@@ -658,7 +655,7 @@ $this proc compute {} {
 				
 			regexp {(?:values\s\d)(.+)(?:isTristate)} $value myMatchedRegexp myMatchedRegexpSub
 			if { ![regexp {1} $myMatchedRegexpSub] && [$this getVar runCounter] > 0 } {
-				$this say "there are no labels selected for processing in Label set $key"
+				$this say "there are no labels selected for processing in [$this labSet$key getLabel]"
 			}
 		
 		}
