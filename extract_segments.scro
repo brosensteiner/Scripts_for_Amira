@@ -68,7 +68,11 @@ $this proc checkModuleStateAndSetVariables {} {
 	for { set i 1 } { $i < [llength [$this connectionPorts]] } { incr i } {
 	
 		if { [$this  [lindex [$this connectionPorts] $i] source] ne "" } {
-				
+			
+			if { [[$this  [lindex [$this connectionPorts] $i] source] getControllingData] eq "" } {# test if label field has a image data field attached (e.g. needed for arithmetic calculations)
+				$this say "warning! [$this  [lindex [$this connectionPorts] $i] source] has no image data field connected,\nfor processing of \"[$this result getLabel 2]\" and \"[$this result getLabel 2]\" results this is required"
+			}
+			
 			lappend allConnectedLabFields [$this [lindex [$this connectionPorts] $i] source]
 			lappend labCountList [[$this labFieldPortCon$i source] parameters Materials nBundles]
 			lappend labSetList labSet$i
@@ -655,7 +659,7 @@ $this proc compute {} {
 				
 			regexp {(?:values\s\d)(.+)(?:isTristate)} $value myMatchedRegexp myMatchedRegexpSub
 			if { ![regexp {1} $myMatchedRegexpSub] && [$this getVar runCounter] > 0 } {
-				$this say "there are no labels selected for processing in [$this labSet$key getLabel]"
+				$this say "there are no labels selected for processing in \"[$this labSet$key getLabel]\""
 			}
 		
 		}
