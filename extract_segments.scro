@@ -1,5 +1,8 @@
 # Amira-Script-Object V3.0
 
+# Register the packages
+package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in
+
 set moduleName [string map {"\.scro" ""} $this];# the name of the module generated from the script filename
 
 # definition of global variables:
@@ -53,8 +56,8 @@ $this proc checkModuleStateAndSetVariables {} {
 	$this fire
 	
 	# first make all empty:
-	array set userLabListSelState {}
-	array set lastLabSetArray {}
+	array unset userLabListSelState
+	array unset lastLabSetArray
 	set allConnectedLabFields [list]
 	set labCountList [list]
 	set labSetList [list]
@@ -344,7 +347,7 @@ $this proc constructor {} {
 		
 }
   
-   
+
 $this proc destructor {} {
 	
 	global surfaceGenModul arythmeticModul
@@ -373,10 +376,8 @@ $this proc destructor {} {
 $this proc savePreparation { args } {
 
 	global allConnectedLabFields emptyConPorts
-	# saves the gui labes for creating initial gui after loading a network file,
-	# when $this is saved with the network file:
-	$this say "\nemptyConPorts: $emptyConPorts"
-	$this say "\nallConnectedLabFields: $allConnectedLabFields"
+	# saves a counter which holds how many gui labset´s should be created after loading a network file,
+	# when $this is saved with a network file:
 	$this setVar savedLabels [expr [llength $allConnectedLabFields] + $emptyConPorts]
 	
 }
@@ -407,7 +408,6 @@ $this proc compute {} {
 	
 	if { [$this getVar computeCounter] > 0 } { $this conPortLogic };# procedure conPortLogic will be executed after the first compute run
 	
-		
 	
 	# the following if/elsif statements construct most of the gui when user checks the toggles or connects modules
 	if { $myPolygonSurfaceToggleIsChecked } {# "polygon surface" is checked
@@ -455,12 +455,12 @@ $this proc compute {} {
 	# ********** actions **********
 	# enters only here when "Apply" button ($this action port) of $this is pressed:
 	
-	if { [$this action getValue] == 0 } {# start calculation when action button is pressed and $this has a valid source
+	if { ![$this action getValue] } {# start calculation when action button is pressed and $this has a valid source
 	
 		workArea startWorking
 	
 		$this setVar runCounter [expr [$this getVar runCounter] + 1];# sets the new runCounter + 1
-		$this say "run [$this getVar runCounter]"
+		$this say "run [$this getVar runCounter]:"
 		workArea setProgressInfo "starting calculation"
 		workArea setProgressValue 0.4
 		
@@ -477,7 +477,7 @@ $this proc compute {} {
 		}
 		
 		# toogle "polygon surface" is checked then the selected labels will be extracted:
-		if { $myPolygonSurfaceToggleIsChecked == 1 } {
+		if { $myPolygonSurfaceToggleIsChecked } {
 			
 			set labfieldCount 0;# counts only how often the foreach loop has run (is needed for retrieving the correct index from labSetList -> see below)
 			
@@ -572,7 +572,7 @@ $this proc compute {} {
 						
 		}
 		
-		if { $myVoxelDataToggleIsChecked == 1 } {
+		if { $myVoxelDataToggleIsChecked } {
 		
 			set theArithmeticExtractedSurfacesList [list]
 			set labfieldCount 0
@@ -593,7 +593,7 @@ $this proc compute {} {
 					if { [$this $theLabSetFromLabSetList getValue $i] == 1 } {
 					
 						$arythmeticModul expr setValue "\(A*\(B==$i\)\)";# sets the extraction expression
-						$arythmeticModul doIt setValue 0;# sometimes it is called doIt, sometimes it is called action for running a amira module, so always look for right command!
+						$arythmeticModul doIt setValue 0;# sometimes it is called "doIt", sometimes it is called "action" for running a amira module, so always look for right command!
 						$arythmeticModul fire
 
 						set theResultFromArithmeticCalcName [[lindex [$arythmeticModul downStreamConnections] 0 0] setLabel "[$labelfield parameters Materials index $i]"];# sets label for newly created voxelfield
@@ -613,26 +613,39 @@ $this proc compute {} {
 			
 		}
 		
-		if { $myResampleZToggleIsChecked == 1 } {
+		if { $myResampleZToggleIsChecked } {
+		
+			
 			
 		}
 		
+		
+		# completions:
 		if { [info exists labfieldCount] } { unset labfieldCount theLabSetFromLabSetList }
+		
+		if {$allConnectedLabFields eq "" && [$this getVar runCounter] > 0} {
+					$this say "nothing to process - no label field connected"
+		}
+		if {[lrange $resultSelectionState 3 5] eq [list 0 0 0] && [$this getVar runCounter] > 0} {
+				$this say "nothing to process - choose on ore more result options"
+		}
+		# searches if user has selected at least one label in the label sets:
+		foreach { key value } [array get userLabListSelState] {
+				
+			regexp {(?:values\s\d)(.+)(?:isTristate)} $value myMatchedRegexp myMatchedRegexpSub
+			if { ![regexp {1} $myMatchedRegexpSub] && [$this getVar runCounter] > 0 } {
+				$this say "there are no labels selected for processing in Label set $key"
+			}
+		
+		}
 		
 		workArea setProgressValue 1
 		workArea stopWorking
 					
 	}
-
 	
 	
-	# completion of compute procedure:
-	if {$allConnectedLabFields eq "" && [$this getVar runCounter] > 0} {
-			$this say "nothing to process - no label field connected"
-	}
-#	if {[lrange $resultSelectionState 3 5] eq [list 0 0 0] && [$this getVar runCounter] > 0} {
-#			$this say "nothing to process - choose on ore more result options"
-#	}
+	
 		
 	$this setVar computeCounter [expr [$this getVar computeCounter] + 1];# computeCounter will get +1 for every run from compute proc
 }
