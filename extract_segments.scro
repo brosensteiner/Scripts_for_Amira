@@ -1,10 +1,10 @@
 # Amira-Script-Object V3.0
 
 # Register the packages
-package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in
+package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlevel 8.4.19)
 
 set moduleName [string map {"\.scro" ""} $this];# the name of the module generated from the script filename
-
+ 
 # definition of global variables:
 $this setVar runCounter 0
 $this setVar computeCounter 0
@@ -22,6 +22,7 @@ set labSetList [list];# list of all lab sets which are in gui
 set userResultSelState [list]
 set userSaveState [list]
 set emptyConPorts 0;# for counting empty connection ports of $this
+set labOKFlagList [list];# saves if labels are ok
 
 # i dont´t want name clashes with user given names for modules
 # so here are the hopefully cryptic enough generated names for the modules $this maybe creates:
@@ -46,12 +47,86 @@ $this proc hasPort {modul port} {
 	if { [lsearch [$myModule allPorts] $port] != -1 } { return 1 } else { return 0 }
 }
 
+
+# procedure which outputs all parameters of a given amira field in a formatted list (procedure is needed, because amira´s tcl interface can´t do it in one step) \
+amira field parameter lists are not that big, so this recursive approach should make not to much overhead
+$this proc lrsearch { field { depth 0 } { theCompleteList {} } { concatBundles {} } } {
+	
+	echo "!!! entered new lrsearch with concatBundles: $concatBundles"
+	if { $depth == 5 } { return [echo "lrsearch test::: $theCompleteList"] }
+		
+	
+	if { [llength concatBundles] == 0 } { 
+		set theList [eval "$field parameters list"]
+	} else {
+		set theList [eval "$field parameters [join $concatBundles] list"]
+	}
+	echo "!!!new list: $theList"
+	
+	set counter 0
+	foreach element $theList {
+		
+		if { [eval "$field parameters [join $concatBundles] $element isBundle"] } { 
+			
+			echo "!!!new Bundle found: [join $concatBundles] $element"
+			set theCompleteList [concat $theCompleteList [eval "$field parameters [join $concatBundles] $element list"]]
+			
+			$this lrsearch $field [incr depth] $theCompleteList [concat $concatBundles $element]
+		
+		
+		} else {
+			echo "!!! is no bundle: $element"
+			set theCompleteList [concat $theCompleteList $element]
+		}
+		incr counter;# counts how often foreach has run	
+	}
+	
+	
+}
+
+$this proc lrsearch2 {list el {prefix {}} } {
+   set pos [lsearch $list $el]
+   if {-1 != $pos} {return [concat $prefix $pos]}
+   set i 0
+   foreach ilist $list {
+       if {![atomic? $ilist]} {
+           set pos [lrsearch2 $ilist $el [concat $prefix $i]]
+           if {-1 != $pos} {return $pos}
+       }
+       incr i
+   }
+   return -1
+}
+
+# procedure which takes one module from with parameters can be copied to another given module.
+# aBundle is the Bundle which will be copied
+# args are the actual copied parameters with there corrsponding value
+$this proc copyLabelFieldParameters { aOldModule aNewModule aBundle args } {
+	
+	set parameterList [aOldModule parameters list]
+	foreach myParameter $args {
+		body
+	}
+	
+	
+	$aNewModule parameters newBundle myTempBundle
+	$aNewModule parameters myTempBundle newBundle $aBundle
+	for { set i 0 } { $a < [$aOldModule parameters aBundle size] } { incr i } {
+		
+		set myMaterialParameter [$aOldModule parameters aBundle index $i]
+		set myMaterialValue [[$surfaceGenModul getResult] parameters Materials $theLabel $myMaterialParameter getValue]
+		$newExtractedSurface parameters myMaterials $theLabel setValue $myMaterialParameter $myMaterialValue
+		
+	}
+	
+}
+
 # function which checks on some $this states, so every time something happens with $this
 # it knows it´s actual state and it can be asked about it:
 $this proc checkModuleStateAndSetVariables {} {
 
 	global allConnectedLabFields labCountList
-	global lastLabSetArray userLabListSelState labSetList emptyConPorts
+	global lastLabSetArray userLabListSelState labSetList emptyConPorts labOKFlagList
 	global userResultSelState userSaveState
 	
 	$this fire
@@ -63,6 +138,7 @@ $this proc checkModuleStateAndSetVariables {} {
 	set labCountList [list]
 	set labSetList [list]
 	set emptyConPorts 0
+	set labOKFlagList [list]
 	
 	# and then update again the lists/arrays:
 	for { set i 1 } { $i < [llength [$this connectionPorts]] } { incr i } {
@@ -71,7 +147,8 @@ $this proc checkModuleStateAndSetVariables {} {
 			
 			if { [[$this  [lindex [$this connectionPorts] $i] source] getControllingData] eq "" } {# test if label field has a image data field attached (e.g. needed for arithmetic calculations)
 				$this say "warning! [$this  [lindex [$this connectionPorts] $i] source] has no image data field connected,\nfor processing of \"[$this result getLabel 2]\" and \"[$this result getLabel 2]\" results this is required"
-			}
+				lappend labOKFlagList 0
+			} else { lappend labOKFlagList 1 }
 			
 			lappend allConnectedLabFields [$this [lindex [$this connectionPorts] $i] source]
 			lappend labCountList [[$this labFieldPortCon$i source] parameters Materials nBundles]
@@ -124,6 +201,7 @@ $this proc checkModuleStateAndSetVariables {} {
 	$this say "lastLabSetArray: [array get lastLabSetArray]"
 	$this say "allConnectedLabFields: $allConnectedLabFields"
 	$this say "emptyConPorts: $emptyConPorts"
+	$this say "labOKFlagList: $labOKFlagList"
 	$this say "labCountList: $labCountList"
 	$this say "labSetList: $labSetList"
 	$this say "userResultSelState: $userResultSelState"
@@ -276,10 +354,6 @@ $this proc setCorrespondingPort { module port { portIndex 0 } } {
 #
 $this proc constructor {} {
 
-	global allConnectedLabFields labCountList
-	global lastLabSetArray labSetList
-	global userLabListSelState userResultSelState userSaveState
-
 	# $this setNoSave 1;# $this can now correctly be saved with the network, so no need for this ...
 
 	$this sayHello
@@ -355,21 +429,22 @@ $this proc destructor {} {
 	
 	global surfaceGenModul arythmeticModul
 	global surfaceViewModul extractSurfaceModul
-	global userLabListSelState lastLabSetArray allConnectedLabFields labCountList
+	global userLabListSelState lastLabSetArray allConnectedLabFields labCountList labOKFlagList
 	global labSetList emptyConPorts
 
 	# removes the modules which the script eventually created when $this gets deleted:
-	if { [lsearch [all] $surfaceGenModul] != -1 }		{ remove $surfaceGenModul }
+	if { [lsearch [all] $surfaceGenModul] != -1 }		{ remove [$surfaceGenModul getResult]; remove $surfaceGenModul }
 	if { [lsearch [all] $surfaceViewModul] != -1 }		{ remove $surfaceViewModul }
 	if { [lsearch [all] $extractSurfaceModul] != -1 }	{ remove $extractSurfaceModul }
 	if { [lsearch [all] $arythmeticModul] != -1 }		{ remove $arythmeticModul }
 	
-	# unset all global variables:
+	# for safty unset all global variables:
 	if { [info exists userLabListSelState] }			{ unset userLabListSelState }
 	if { [info exists allConnectedLabFields] }			{ unset allConnectedLabFields }
 	if { [info exists labCountList] }					{ unset labCountList }
 	if { [info exists labSetList] }						{ unset labSetList }
 	if { [info exists emptyConPorts] }					{ unset emptyConPorts }
+	if { [info exists labOKFlagList] }				{ unset labOKFlagList }
 	
 	set hideNewModules 0
 	
@@ -395,7 +470,7 @@ $this proc compute {} {
 	global alignPrincipalAxesModul arythmeticModul
 	global userLabListSelState userSaveState
 
-	global allConnectedLabFields labCountList
+	global allConnectedLabFields labCountList labOKFlagList
 	global lastLabSetArray labSetList
 
 	# some status checks on toogle bottons:
@@ -516,6 +591,8 @@ $this proc compute {} {
 				
 				for { set i 0 } { $i < [$this $theLabSetFromLabSetList getNum] } { incr i } {
 				
+					$this testBreak
+					
 					if { [$this $theLabSetFromLabSetList getValue $i] == 1 } {
 						
 						set theLabel [$this $theLabSetFromLabSetList getLabel $i]
@@ -531,6 +608,28 @@ $this proc compute {} {
 						$extractSurfaceModul fire
 						
 						set newExtractedSurface [[$extractSurfaceModul getResult] setLabel "$theLabel.surf"];# sets new name of the newly extracted surface (.surf is Amira standard for surface fields)
+						set newExtractedSurface [[$extractSurfaceModul getResult] getLabel];# amira gives automatic numbers to double entries in the pool so here i will get the actual label back
+						
+						# cleanup the label field parameters:
+#						$newExtractedSurface parameters newBundle myMaterials
+#						$newExtractedSurface parameters myMaterials newBundle $theLabel
+#						for { set a 0 } { $a < [[$surfaceGenModul getResult] parameters Materials $theLabel size] } { incr a } {
+#
+#							set myMaterialParameter [[$surfaceGenModul getResult] parameters Materials $theLabel index $a]
+#							set myMaterialValue [[$surfaceGenModul getResult] parameters Materials $theLabel $myMaterialParameter getValue]
+#							$newExtractedSurface parameters myMaterials $theLabel setValue $myMaterialParameter $myMaterialValue
+#							
+#						}
+#						if { [info exists myMaterialParameter] } { unset myMaterialParameter; unset myMaterialValue }
+						
+						
+						
+						$this lrsearch $newExtractedSurface
+						
+#						$newExtractedSurface parameters Materials setFlag NO_DELETE 0
+#						$newExtractedSurface parameters remove Materials
+#						$newExtractedSurface parameters myMaterials setName Materials
+						 
 						
 						lappend theExtractedSurfacesList $newExtractedSurface
 							
@@ -547,26 +646,21 @@ $this proc compute {} {
 		
 				
 				}
+
+				lset theCompleteExtractedList [concat $theCompleteExtractedList $theExtractedSurfacesList];# save all generated surfaces in theCompleteExtractedList list
 				
-				if { $theExtractedSurfacesList eq [list] } {# if list is empty echo warning, else process
-					$this say "no labels for extraction selected"
-				} else {
-					
-					lset theCompleteExtractedList [concat $theCompleteExtractedList $theExtractedSurfacesList];# save all generated surfaces in theCompleteExtractedList list
-					
-					$surfaceViewModul buffer setValue 1;# only get rid of the last selection in buffer which would otherwise be visible in the viewer
-					$surfaceViewModul compute
-					
-					# in this foreach iteration the surfaces in the theExtractedSurfacesList list will be further processed
-					foreach theSurface $theExtractedSurfacesList {
-						
-						$this createModuleAndConnectIfOkToSource HxAlignPrincipalAxes $alignPrincipalAxesModul $theSurface
-						$alignPrincipalAxesModul action setValue 0
-						$alignPrincipalAxesModul fire
-						
-					}
+				$surfaceViewModul buffer setValue 1;# only get rid of the last selection in buffer which would otherwise be visible in the viewer
+				$surfaceViewModul compute
 				
+				# in this foreach iteration the surfaces in the theExtractedSurfacesList will be rotated according to their respective principal axes:
+				foreach theSurface $theExtractedSurfacesList {
+					
+					$this createModuleAndConnectIfOkToSource HxAlignPrincipalAxes $alignPrincipalAxesModul $theSurface
+					$alignPrincipalAxesModul action setValue 0
+					$alignPrincipalAxesModul fire
+					
 				}
+				
 				
 				remove $alignPrincipalAxesModul;# AlignPrincipalAxes module is not needed any more.
 				set labfieldCount [incr labfieldCount]
@@ -592,7 +686,7 @@ $this proc compute {} {
 			
 					$this testBreak;# maybe calculation here will take long
 					
-					if { [$this $theLabSetFromLabSetList getValue $i] == 1 } {
+					if { [$this $theLabSetFromLabSetList getValue $i] == 1 && [lindex $labOKFlagList $labfieldCount] == 1} {# check if toogle is checked and label field is ok
 					
 						$arythmeticModul expr setValue "\(A*\(B==$i\)\)";# sets the extraction expression
 						$arythmeticModul doIt setValue 0;# sometimes it is called "doIt", sometimes it is called "action" for running a amira module, so always look for right command!
@@ -613,7 +707,6 @@ $this proc compute {} {
 					}
 	
 				}
-				
 				set labfieldCount [incr labfieldCount]	
 			}
 			
