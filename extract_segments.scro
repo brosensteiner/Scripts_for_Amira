@@ -49,38 +49,33 @@ $this proc hasPort {modul port} {
 
 
 # procedure which outputs all parameters of a given amira field in a formatted list (procedure is needed, because amira´s tcl interface can´t do it in one step) \
-amira field parameter lists are not that big, so this recursive approach should make not to much overhead
-$this proc lrsearch { field { depth 0 } { theCompleteList {} } { concatBundles {} } } {
-	
-	echo "!!! entered new lrsearch with concatBundles: $concatBundles"
-	if { $depth == 5 } { return [echo "lrsearch test::: $theCompleteList"] }
+  amira field parameter lists are not that big, so this recursive approach should make not to much overhead. \
+  first argument: a amira field with parameters, second argument: a integer for specifing how depp the parameter expansion should go \
+  rest of the optional arguments is for maintaining the recursion
+$this proc makeArrayFromAmiraParameters { field { depth 2 } { theComplValArr {} } { concatBundles {} } { recloop 0 } } {
 		
+	upvar $theComplValArr theComplValArrUpvar;# this is neccesary because theComplValArrUpvar should always point one level up to theComplValArr, so that theComplValArr gets every time modified even the recursion is in a stackframe one deeper
+	if { ![info exists theComplValArrUpvar] } { array set theComplValArrUpvar {} }
 	
 	if { [llength concatBundles] == 0 } { 
 		set theList [eval "$field parameters list"]
 	} else {
 		set theList [eval "$field parameters [join $concatBundles] list"]
 	}
-	echo "!!!new list: $theList"
 	
-	set counter 0
 	foreach element $theList {
 		
-		if { [eval "$field parameters [join $concatBundles] $element isBundle"] } { 
-			
-			echo "!!!new Bundle found: [join $concatBundles] $element"
-			set theCompleteList [concat $theCompleteList [eval "$field parameters [join $concatBundles] $element list"]]
-			
-			$this lrsearch $field [incr depth] $theCompleteList [concat $concatBundles $element]
-		
-		
+		if { [eval "$field parameters [join $concatBundles] $element isBundle"] } {
+			$this makeArrayFromAmiraParameters $field $depth [array get theComplValArrUpvar] [concat $concatBundles $element] [incr recloop]
 		} else {
-			echo "!!! is no bundle: $element"
-			set theCompleteList [concat $theCompleteList $element]
+		
+			set theValue [eval "$field parameters [join $concatBundles] $element getValue"]
+			set theComplValArrUpvar([join $concatBundles ,],$element) [list $element $theValue]
+			
 		}
-		incr counter;# counts how often foreach has run	
+		
 	}
-	
+	if { $depth == $recloop } { return [echo "makeArrayFromAmiraParameters test::: [array get theComplValArrUpvar]"] }
 	
 }
 
@@ -98,28 +93,7 @@ $this proc lrsearch2 {list el {prefix {}} } {
    return -1
 }
 
-# procedure which takes one module from with parameters can be copied to another given module.
-# aBundle is the Bundle which will be copied
-# args are the actual copied parameters with there corrsponding value
-$this proc copyLabelFieldParameters { aOldModule aNewModule aBundle args } {
-	
-	set parameterList [aOldModule parameters list]
-	foreach myParameter $args {
-		body
-	}
-	
-	
-	$aNewModule parameters newBundle myTempBundle
-	$aNewModule parameters myTempBundle newBundle $aBundle
-	for { set i 0 } { $a < [$aOldModule parameters aBundle size] } { incr i } {
-		
-		set myMaterialParameter [$aOldModule parameters aBundle index $i]
-		set myMaterialValue [[$surfaceGenModul getResult] parameters Materials $theLabel $myMaterialParameter getValue]
-		$newExtractedSurface parameters myMaterials $theLabel setValue $myMaterialParameter $myMaterialValue
-		
-	}
-	
-}
+
 
 # function which checks on some $this states, so every time something happens with $this
 # it knows it´s actual state and it can be asked about it:
@@ -622,9 +596,13 @@ $this proc compute {} {
 #						}
 #						if { [info exists myMaterialParameter] } { unset myMaterialParameter; unset myMaterialValue }
 						
+						echo "!!!test with 3: [$this makeArrayFromAmiraParameters $newExtractedSurface 3]"
+						echo "!!!test with 4: [$this makeArrayFromAmiraParameters $newExtractedSurface 4]"
+						echo "!!!test with 5: [$this makeArrayFromAmiraParameters $newExtractedSurface 5]"
+						echo "!!!test with 6: [$this makeArrayFromAmiraParameters $newExtractedSurface 6]"
+						echo "!!!test with 7: [$this makeArrayFromAmiraParameters $newExtractedSurface 7]"
+						echo "!!!test with 8: [$this makeArrayFromAmiraParameters $newExtractedSurface 8]"
 						
-						
-						$this lrsearch $newExtractedSurface
 						
 #						$newExtractedSurface parameters Materials setFlag NO_DELETE 0
 #						$newExtractedSurface parameters remove Materials
