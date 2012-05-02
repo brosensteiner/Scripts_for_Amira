@@ -4,7 +4,8 @@
 package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlevel 8.4.19)
 
 set moduleName [string map {"\.scro" ""} $this];# the name of the module generated from the script filename
- 
+set theAuthor "Bernhard Rosensteiner"
+
 # definition of global variables:
 $this setVar runCounter 0
 $this setVar computeCounter 0
@@ -40,6 +41,33 @@ $this proc say { something } {
 	global moduleName
 	echo "$moduleName: $something"
 }
+# procedure which can add new parameters to a amira field. 1. arg: the field, 2. arg: a new Bundle, args: pairs of parameter/values (e.g. Color { 1 0 1 })
+$this proc stampField { field theBundle args } {
+
+	$field parameters newBundle $theBundle
+	foreach { par val } $args {
+		eval "$field parameters $theBundle setValue $par $val"
+	}
+
+}
+# clear items in a specified Bundle in a amira field (saves some typing):
+$this proc clearBundle { field args } {
+
+	if { [llength $args] > 1 } {
+		set lastElement [lindex $args end]
+		set restElements [lrange $args 0 end-1]
+	} else {# when only one bundle in args (e.g. Materials)
+		set lastElement $args
+		set restElements ""
+	}
+	
+	foreach item [eval "$field $restElements parameters $lastElement list"] {
+		eval "$field $restElements parameters $lastElement $item setFlag NO_DELETE 0"
+		eval "$field $restElements parameters $lastElement remove $item"
+	}
+	
+}
+
 
 # simple port test: procedure returns 1 when modul has port, otherwise it returns 0
 $this proc hasPort {modul port} {
@@ -47,59 +75,66 @@ $this proc hasPort {modul port} {
 	if { [lsearch [$myModule allPorts] $port] != -1 } { return 1 } else { return 0 }
 }
 
-
-# procedure which outputs all parameters of a given amira field in a formatted list (procedure is needed, because amira´s tcl interface can´t do it in one step) \
+# procedure which returns all parameters of a given amira field in a formatted array, were every parameter/value can be retrieved  (procedure is needed, because amira´s tcl interface can´t do it in one step) \
   amira field parameter lists are not that big, so this recursive approach should make not to much overhead. \
-  first argument: a amira field with parameters, second argument: a integer for specifing how depp the parameter expansion should go \
-  rest of the optional arguments is for maintaining the recursion
-$this proc makeArrayFromAmiraParameters { field { depth 2 } { theComplValArr {} } { concatBundles {} } { recloop 0 } } {
+  procedure needs a the only argument a amira field (e.g. label field)
+$this proc makeArrayFromAmiraParameters { field { theComplValArr {} } { concatBundles {} } { recloop 0 } } {
 		
-	upvar $theComplValArr theComplValArrUpvar;# this is neccesary because theComplValArrUpvar should always point one level up to theComplValArr, so that theComplValArr gets every time modified even the recursion is in a stackframe one deeper
-	if { ![info exists theComplValArrUpvar] } { array set theComplValArrUpvar {} }
+	upvar 1 $theComplValArr theComplValArrUpvar;# this is neccesary because theComplValArrUpvar should always point one level up (yeah! Tcl has pointers ;)) to theComplValArr,\
+	 so that theComplValArr gets every time modified even the recursion is in a stackframe deeper
+		
+	if { [llength concatBundles] == 0 } {
 	
-	if { [llength concatBundles] == 0 } { 
 		set theList [eval "$field parameters list"]
-	} else {
-		set theList [eval "$field parameters [join $concatBundles] list"]
-	}
+		if { [llength $theList] == 0 } { echo "$field has no parameters"; return 1 }
+		
+	} else { set theList [eval "$field parameters [join $concatBundles] list"] }
 	
 	foreach element $theList {
 		
 		if { [eval "$field parameters [join $concatBundles] $element isBundle"] } {
-			$this makeArrayFromAmiraParameters $field $depth [array get theComplValArrUpvar] [concat $concatBundles $element] [incr recloop]
+			
+			$this makeArrayFromAmiraParameters $field theComplValArrUpvar [concat $concatBundles $element] [incr recloop]
+			
 		} else {
 		
 			set theValue [eval "$field parameters [join $concatBundles] $element getValue"]
-			set theComplValArrUpvar([join $concatBundles ,],$element) [list $element $theValue]
+			if { ![info exists theComplValArrUpvar([join $concatBundles ,],$element)] } {
+				 set theComplValArrUpvar([join $concatBundles ,],$element) [list $element $theValue]
+			} else { 
+				echo "$theComplValArrUpvar([join $concatBundles ,],$element) exists already in parameter list, so it gets a name modifier!"
+				set theComplValArrUpvar([join $concatBundles ,],$element$recloop) [list $element $theValue]
+			}
 			
 		}
 		
 	}
-	if { $depth == $recloop } { return [echo "makeArrayFromAmiraParameters test::: [array get theComplValArrUpvar]"] }
+	return [array get theComplValArrUpvar]
 	
 }
 
-$this proc lrsearch2 {list el {prefix {}} } {
-   set pos [lsearch $list $el]
-   if {-1 != $pos} {return [concat $prefix $pos]}
-   set i 0
-   foreach ilist $list {
-       if {![atomic? $ilist]} {
-           set pos [lrsearch2 $ilist $el [concat $prefix $i]]
-           if {-1 != $pos} {return $pos}
-       }
-       incr i
-   }
-   return -1
+$this proc autoConnectToLabelField {} {
+
+	global allConnectedLabFields allEmptyConPorts
+	
+	set theLabConPortsList [lrange [$this connectionPorts] 1 end]
+	set theList [all HxUniformLabelField3]
+	
+	foreach item $theLabConPortsList {
+		$this $item disconnect
+	}
+	
+	foreach item $theList {
+		$this [lindex $allEmptyConPorts 0] connect $item
+		$this compute
+	}
 }
-
-
 
 # function which checks on some $this states, so every time something happens with $this
 # it knows it´s actual state and it can be asked about it:
 $this proc checkModuleStateAndSetVariables {} {
 
-	global allConnectedLabFields labCountList
+	global allConnectedLabFields allEmptyConPorts labCountList
 	global lastLabSetArray userLabListSelState labSetList emptyConPorts labOKFlagList
 	global userResultSelState userSaveState
 	
@@ -109,6 +144,7 @@ $this proc checkModuleStateAndSetVariables {} {
 	array unset userLabListSelState
 	array unset lastLabSetArray
 	set allConnectedLabFields [list]
+	set allEmptyConPorts [list]
 	set labCountList [list]
 	set labSetList [list]
 	set emptyConPorts 0
@@ -141,6 +177,7 @@ $this proc checkModuleStateAndSetVariables {} {
 		} else {
 			
 			set emptyConPorts [incr emptyConPorts];# count every empty connection port
+			lappend allEmptyConPorts [lindex [$this connectionPorts] $i]
 			
 			# hide the ports when not connected to label field:
 			$this labSeparator$i hide
@@ -174,6 +211,7 @@ $this proc checkModuleStateAndSetVariables {} {
 	$this say "\nuserLabListSelState: [array get userLabListSelState]"
 	$this say "lastLabSetArray: [array get lastLabSetArray]"
 	$this say "allConnectedLabFields: $allConnectedLabFields"
+	$this say "allEmptyConPorts: $allEmptyConPorts"
 	$this say "emptyConPorts: $emptyConPorts"
 	$this say "labOKFlagList: $labOKFlagList"
 	$this say "labCountList: $labCountList"
@@ -332,7 +370,7 @@ $this proc constructor {} {
 
 	$this sayHello
 	$this select;# $this should be selected after loading
-	$this script show;
+	$this script show;# will be commented out when $this is finished, only handy for debbuging
 
 	# creates options for choosing which result will be produced by $this
 	$this newPortToggleList result 4
@@ -345,6 +383,11 @@ $this proc constructor {} {
 	$this newPortFilename saveResults
 	$this saveResults setLabel "Save result"
 	$this saveResults setMode 3
+	
+	# creates a generic port for some stuff (maybe future extensions):
+	$this newPortButtonList Utilities 1
+	$this Utilities setLabel 0 "Connect all label fields"
+	$this Utilities setCmd 0 { $this autoConnectToLabelField }
 	
 	# creates Action Button port
 	$this newPortDoIt action
@@ -437,7 +480,7 @@ $this proc compute {} {
 
 	$this testBreak;# for safety...
 	
-	global moduleName surfaceGenModul
+	global moduleName theAuthor surfaceGenModul
 	global surfaceViewModul
 	global extractSurfaceModul
 	global theExtractedSurfacesList theCompleteExtractedList theArithmeticExtractedSurfacesList theResampleZExtractedSurfacesList
@@ -577,37 +620,28 @@ $this proc compute {} {
 						$surfaceViewModul compute
 						
 						# here happens the extraction of the surfaces:
-						$this createModuleAndConnectIfOkToSource HxViewBaseExtract $extractSurfaceModul $surfaceViewModul
+						$this createModuleAndConnectIfOkToSource HxViewBaseExtract $extractSurfaceModul $surfaceViewModul;# createSurface command from HxDisplaySurface class\
+						would also work, actually the createSurface command does the same in background but makes some overhead because of always deleting and creating\
+						 a HxViewBaseExtract module for every extracted surface - createModuleAndConnectIfOkToSource does not
 						$extractSurfaceModul action setValue 0
 						$extractSurfaceModul fire
 						
 						set newExtractedSurface [[$extractSurfaceModul getResult] setLabel "$theLabel.surf"];# sets new name of the newly extracted surface (.surf is Amira standard for surface fields)
-						set newExtractedSurface [[$extractSurfaceModul getResult] getLabel];# amira gives automatic numbers to double entries in the pool so here i will get the actual label back
+						#set newExtractedSurface [[$extractSurfaceModul getResult] getLabel];# amira gives automatic numbers to double entries in the pool so here i will get the actual label back
 						
 						# cleanup the label field parameters:
-#						$newExtractedSurface parameters newBundle myMaterials
-#						$newExtractedSurface parameters myMaterials newBundle $theLabel
-#						for { set a 0 } { $a < [[$surfaceGenModul getResult] parameters Materials $theLabel size] } { incr a } {
-#
-#							set myMaterialParameter [[$surfaceGenModul getResult] parameters Materials $theLabel index $a]
-#							set myMaterialValue [[$surfaceGenModul getResult] parameters Materials $theLabel $myMaterialParameter getValue]
-#							$newExtractedSurface parameters myMaterials $theLabel setValue $myMaterialParameter $myMaterialValue
-#							
-#						}
-#						if { [info exists myMaterialParameter] } { unset myMaterialParameter; unset myMaterialValue }
-						
-						echo "!!!test with 3: [$this makeArrayFromAmiraParameters $newExtractedSurface 3]"
-						echo "!!!test with 4: [$this makeArrayFromAmiraParameters $newExtractedSurface 4]"
-						echo "!!!test with 5: [$this makeArrayFromAmiraParameters $newExtractedSurface 5]"
-						echo "!!!test with 6: [$this makeArrayFromAmiraParameters $newExtractedSurface 6]"
-						echo "!!!test with 7: [$this makeArrayFromAmiraParameters $newExtractedSurface 7]"
-						echo "!!!test with 8: [$this makeArrayFromAmiraParameters $newExtractedSurface 8]"
-						
-						
-#						$newExtractedSurface parameters Materials setFlag NO_DELETE 0
-#						$newExtractedSurface parameters remove Materials
-#						$newExtractedSurface parameters myMaterials setName Materials
-						 
+											
+						array set newExtractedSurfaceParameters [$this makeArrayFromAmiraParameters $newExtractedSurface];# get the original values from the parameter list
+						# clearing the old parameters:
+						$this clearBundle $newExtractedSurface Materials 
+						$newExtractedSurface parameters Materials newBundle $theLabel
+						$newExtractedSurface setDefaultFileFormat "HxSurface ascii" 
+						# adopting the values for the respective label:
+						foreach item { Color Transparency id } {
+							eval "$newExtractedSurface parameters Materials $theLabel setValue $newExtractedSurfaceParameters(Materials,$theLabel,$item)"
+						}
+						#some additional info: 	
+						$this stampField $newExtractedSurface ModuleInfo ModuleName $moduleName author $theAuthor
 						
 						lappend theExtractedSurfacesList $newExtractedSurface
 							
@@ -615,7 +649,8 @@ $this proc compute {} {
 						$newExtractedSurface recompute
 						$newExtractedSurface cleanup
 						$newExtractedSurface fixOrientation;# helps maybe
-						# $newExtractedSurface makeOnePatch
+						$newExtractedSurface makeOnePatch;# when not made the $newExtractedSurface is corrupt when not saved and openend again,\
+						(i.e attaching a SurfaceView module crashes Amira) has propably something to do with changing values in the parameter list ... 
 						$newExtractedSurface compute
 						$surfaceViewModul buffer setValue 2;# remove from buffer (hit remove button)
 						$surfaceViewModul compute
@@ -719,7 +754,7 @@ $this proc compute {} {
 		
 		if { [info exists labfieldCount] } { unset labfieldCount theLabSetFromLabSetList }
 		
-		# user info which will be shown in the console:
+		# user info which will be shown in the console if necessary:
 		if {$allConnectedLabFields eq "" && [$this getVar runCounter] > 0} {
 					$this say "nothing to process - no label field connected"
 		}
@@ -739,9 +774,7 @@ $this proc compute {} {
 		workArea stopWorking
 					
 	}
-	
-	
-	
+
 		
 	$this setVar computeCounter [expr [$this getVar computeCounter] + 1];# computeCounter will get +1 for every run from compute proc
 }
