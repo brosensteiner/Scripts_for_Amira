@@ -23,6 +23,7 @@ set labSetList [list];# list of all lab sets which are in gui
 set userResultSelState [list]
 set userSaveState [list]
 set emptyConPorts 0;# for counting empty connection ports of $this
+set allEmptyConPorts [list];# all empty connction ports of $this
 set labOKFlagList [list];# saves if labels are ok
 
 # i dont´t want name clashes with user given names for modules
@@ -69,26 +70,23 @@ $this proc clearBundle { field args } {
 }
 
 
-# simple port test: procedure returns 1 when modul has port, otherwise it returns 0
+# simple port test: procedure returns 1 when module has port, otherwise it returns 0
 $this proc hasPort {modul port} {
 	upvar #1 $modul myModule
 	if { [lsearch [$myModule allPorts] $port] != -1 } { return 1 } else { return 0 }
 }
 
-# procedure which returns all parameters of a given amira field in a formatted array, were every parameter/value can be retrieved  (procedure is needed, because amira´s tcl interface can´t do it in one step) \
+# procedure which returns all parameters of a given amira field in a formatted array, were every parameter/value can be retrieved \
+  procedure is needed, because amira´s tcl interface can´t do it in one step \
   amira field parameter lists are not that big, so this recursive approach should make not to much overhead. \
   procedure needs a the only argument a amira field (e.g. label field)
 $this proc makeArrayFromAmiraParameters { field { theComplValArr {} } { concatBundles {} } { recloop 0 } } {
 		
-	upvar 1 $theComplValArr theComplValArrUpvar;# this is neccesary because theComplValArrUpvar should always point one level up (yeah! Tcl has pointers ;)) to theComplValArr,\
+	upvar 1 $theComplValArr theComplValArrUpvar;# this is neccesary because theComplValArrUpvar should always point one level up (yeah! Tcl has some sort of pointers ;)) to theComplValArr,\
 	 so that theComplValArr gets every time modified even the recursion is in a stackframe deeper
-		
-	if { [llength concatBundles] == 0 } {
-	
-		set theList [eval "$field parameters list"]
-		if { [llength $theList] == 0 } { echo "$field has no parameters"; return 1 }
-		
-	} else { set theList [eval "$field parameters [join $concatBundles] list"] }
+			
+	set theList [eval "$field parameters [join $concatBundles] list"]
+	if { [llength $theList] == 0 } { echo "$field has no parameters"; return 1 }
 	
 	foreach element $theList {
 		
@@ -101,13 +99,8 @@ $this proc makeArrayFromAmiraParameters { field { theComplValArr {} } { concatBu
 			set theValue [eval "$field parameters [join $concatBundles] $element getValue"]
 			if { ![info exists theComplValArrUpvar([join $concatBundles ,],$element)] } {
 				 set theComplValArrUpvar([join $concatBundles ,],$element) [list $element $theValue]
-			} else { 
-				echo "$theComplValArrUpvar([join $concatBundles ,],$element) exists already in parameter list, so it gets a name modifier!"
-				set theComplValArrUpvar([join $concatBundles ,],$element$recloop) [list $element $theValue]
 			}
-			
 		}
-		
 	}
 	return [array get theComplValArrUpvar]
 	
@@ -130,8 +123,8 @@ $this proc autoConnectToLabelField {} {
 	}
 }
 
-# function which checks on some $this states, so every time something happens with $this
-# it knows it´s actual state and it can be asked about it:
+# function which checks on some $this states and sets the labels of "label set" ports, so every time something happens with $this \
+  it knows it´s actual state and it can be asked about it:
 $this proc checkModuleStateAndSetVariables {} {
 
 	global allConnectedLabFields allEmptyConPorts labCountList
@@ -206,7 +199,6 @@ $this proc checkModuleStateAndSetVariables {} {
 		
 	}
 	
-	
 	# printing $this info (only for debugging):
 	$this say "\nuserLabListSelState: [array get userLabListSelState]"
 	$this say "lastLabSetArray: [array get lastLabSetArray]"
@@ -240,8 +232,8 @@ $this proc bottonAllPressed { num } {
   			
 }
 
-# procedure creates gui elements (separator, bottons, toggles) for a connected lab field
-# argument i is the number of portname
+# procedure creates gui elements (separator, bottons, toggles) for a connected lab field \
+  argument i is the number of portname
 $this proc createConPortButtonsToggles { i } {
 
 	global allConnectedLabFields labCountList
@@ -273,8 +265,8 @@ $this proc createConPortButtonsToggles { i } {
 	$this checkModuleStateAndSetVariables;
 	
 }
-# procedure deletes gui elements (separator, bottons, toggles) for a connected lab field
-# argument i is the number of portname
+# procedure deletes gui elements (separator, bottons, toggles) for a connected lab field \
+  argument i is the number of portname
 $this proc deleteConPortButtonsToggles { i } {
 		
 	$this deletePort labFieldPortCon$i
@@ -286,9 +278,9 @@ $this proc deleteConPortButtonsToggles { i } {
 	
 }
 
-# procedure which will make shure that there is always a free connection port for connecting a label field
-# all connection ports at the end will be deleted if there is a free connection port somewhere in the middle
-# (is a smarter logic that for example the amira´s own ExtractSurface module has)
+# procedure which will make shure that there is always a free connection port for connecting a label field \
+  all connection ports at the end will be deleted if there is a free connection port somewhere in the middle \
+  (is a smarter logic that for example the amira´s own ExtractSurface module has)
 $this proc conPortLogic {} {
 
 	global emptyConPorts
@@ -309,12 +301,11 @@ $this proc conPortLogic {} {
 
 }
 
-# procedure which creates moduleType and connects it with sourceName module and checks if connection is valid
-# moduleName is the name of the module in the pool
-# if moduleName module does not exist it also gets created in the pool
-# function returns the name string of the newly created module
+# procedure which creates moduleType and connects it with sourceName module and checks if connection is valid \
+  moduleName is the name of the module in the pool \
+  if moduleName module does not exist it also gets created in the pool \
+  function returns the name string of the newly created module
 $this proc createModuleAndConnectIfOkToSource { moduleType moduleName sourceName { conPortIndex 0 } } {
-
 	
 	if { [lsearch [all $moduleType] $moduleName] == -1 } {# test if module is already in the pool -1 := not in pool
 	
@@ -338,14 +329,15 @@ $this proc createModuleAndConnectIfOkToSource { moduleType moduleName sourceName
 	
 }
 
-# switches the given module port remotely from $this ($this must have a corresponding (i.e. same) port!)
-# it works like the amira built in port connect "<modulename 1> <P0 name> connect < modulename 2> [<P1 name>]" exept, that it works (e.g. there are some bugs with menu entry numeration in amira modules)
+# switches the given module port remotely from $this ($this must have a corresponding (i.e. same) port!) \
+  it works like the amira built in port connect "<modulename 1> <P0 name> connect < modulename 2> [<P1 name>]" exept, \
+  that it works (e.g. there are some bugs with menu entry numeration in amira modules)
 $this proc setCorrespondingPort { module port { portIndex 0 } } {
 
 	upvar #0 $module myModule
 	
 	if { [info exists myModule] == 0 } {
-		$this say "hm\.\.\. this module does not exist, maybe you deleted it - restart $moduleName"
+		$this say "hm\.\.\. $myModule module does not exist, maybe you deleted it - restart $moduleName"
 	}
 	
 	$this fire;# infinit loop in Amira when here no update of all downstream modules - crashes most of the time Amira
@@ -429,8 +421,8 @@ $this proc constructor {} {
 	$this resampleOptions setLabel "Resample options"
 	
 		
-	# when savedLabes is not defined it will with this if statement (will only be the case at first loading $this,
-	# afterwards it is always defined -> see proc savePreparation):
+	# when savedLabes is not defined it will with this if statement (will only be the case at first loading $this, \
+	  afterwards it is always defined -> see proc savePreparation):
 	if { ![$this hasVar savedLabels] } {# hasVar is undocumented in Amira ducomentation, but indispensable ...
 		 $this setVar savedLabels 1
 	}
@@ -440,14 +432,13 @@ $this proc constructor {} {
 	}
 		
 }
-  
 
 $this proc destructor {} {
 	
 	global surfaceGenModul arythmeticModul
 	global surfaceViewModul extractSurfaceModul
 	global userLabListSelState lastLabSetArray allConnectedLabFields labCountList labOKFlagList
-	global labSetList emptyConPorts
+	global labSetList emptyConPorts allEmptyConPorts
 
 	# removes the modules which the script eventually created when $this gets deleted:
 	if { [lsearch [all] $surfaceGenModul] != -1 }		{ remove [$surfaceGenModul getResult]; remove $surfaceGenModul }
@@ -455,13 +446,14 @@ $this proc destructor {} {
 	if { [lsearch [all] $extractSurfaceModul] != -1 }	{ remove $extractSurfaceModul }
 	if { [lsearch [all] $arythmeticModul] != -1 }		{ remove $arythmeticModul }
 	
-	# for safty unset all global variables:
+	# for safety unset all global variables:
 	if { [info exists userLabListSelState] }			{ unset userLabListSelState }
 	if { [info exists allConnectedLabFields] }			{ unset allConnectedLabFields }
 	if { [info exists labCountList] }					{ unset labCountList }
 	if { [info exists labSetList] }						{ unset labSetList }
 	if { [info exists emptyConPorts] }					{ unset emptyConPorts }
-	if { [info exists labOKFlagList] }				{ unset labOKFlagList }
+	if { [info exists allEmptyConPorts] }				{ unset allEmptyConPorts }
+	if { [info exists labOKFlagList] }					{ unset labOKFlagList }
 	
 	set hideNewModules 0
 	
@@ -480,9 +472,8 @@ $this proc compute {} {
 
 	$this testBreak;# for safety...
 	
-	global moduleName theAuthor surfaceGenModul
-	global surfaceViewModul
-	global extractSurfaceModul
+	global moduleName theAuthor
+	global surfaceViewModul extractSurfaceModul surfaceGenModul
 	global theExtractedSurfacesList theCompleteExtractedList theArithmeticExtractedSurfacesList theResampleZExtractedSurfacesList
 	global alignPrincipalAxesModul arythmeticModul
 	global userLabListSelState userSaveState
@@ -547,8 +538,8 @@ $this proc compute {} {
 	}
 	
 	
-	# ********** actions **********
-	# enters only here when "Apply" button ($this action port) of $this is pressed:
+	# ********** actions ********** \
+	  enters only here when "Apply" button ($this action port) of $this is pressed:
 	
 	if { ![$this action getValue] } {# start calculation when action button is pressed and $this has a valid source
 	
@@ -633,24 +624,27 @@ $this proc compute {} {
 											
 						array set newExtractedSurfaceParameters [$this makeArrayFromAmiraParameters $newExtractedSurface];# get the original values from the parameter list
 						# clearing the old parameters:
-						$this clearBundle $newExtractedSurface Materials 
-						$newExtractedSurface parameters Materials newBundle $theLabel
+						$this clearBundle $newExtractedSurface Materials
+						eval "$newExtractedSurface parameters Materials newBundle $theLabel"
 						$newExtractedSurface setDefaultFileFormat "HxSurface ascii" 
 						# adopting the values for the respective label:
 						foreach item { Color Transparency id } {
-							eval "$newExtractedSurface parameters Materials $theLabel setValue $newExtractedSurfaceParameters(Materials,$theLabel,$item)"
+							if { [info exists newExtractedSurfaceParameters(Materials,$theLabel,$item)] } {
+								eval "$newExtractedSurface parameters Materials $theLabel setValue $newExtractedSurfaceParameters(Materials,$theLabel,$item)"
+							}
 						}
 						#some additional info: 	
 						$this stampField $newExtractedSurface ModuleInfo ModuleName $moduleName author $theAuthor
 						
 						lappend theExtractedSurfacesList $newExtractedSurface
+						array unset newExtractedSurfaceParameters
 							
 						$newExtractedSurface master disconnect;# otherwise the newly created surface gets overriden in the next for loop iteration
-						$newExtractedSurface recompute
 						$newExtractedSurface cleanup
 						$newExtractedSurface fixOrientation;# helps maybe
-						$newExtractedSurface makeOnePatch;# when not made the $newExtractedSurface is corrupt when not saved and openend again,\
+						#$newExtractedSurface makeOnePatch;# when not made the $newExtractedSurface is corrupt when not saved and openend again,\
 						(i.e attaching a SurfaceView module crashes Amira) has propably something to do with changing values in the parameter list ... 
+						$newExtractedSurface recompute
 						$newExtractedSurface compute
 						$surfaceViewModul buffer setValue 2;# remove from buffer (hit remove button)
 						$surfaceViewModul compute
@@ -732,7 +726,7 @@ $this proc compute {} {
 		}
 		
 		# saving routine:		
-		if { $userSaveState ne "" } {# is user has typed something in the saveResults port
+		if { $userSaveState ne "" } {# user has typed something in the saveResults port
 			
 			if { [file isdirectory $userSaveState] } {
 			
@@ -778,5 +772,4 @@ $this proc compute {} {
 		
 	$this setVar computeCounter [expr [$this getVar computeCounter] + 1];# computeCounter will get +1 for every run from compute proc
 }
-  
   
