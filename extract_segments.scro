@@ -133,20 +133,27 @@ $this proc extractFromSpreadsheet { spreadObj } {
 																		[$spreadObj getValue 10 $i]\
 																		]
 	}
-	#put eigenvectors 1x, 1y, 1z; 2x, 2y, 2z; 3x, 3y, 3z in array:
+	#put eigenvectors 1x, 1y, 1z in array:
 	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],evector) [list	[$spreadObj getValue 11 $i]\
+		set spreadExtractArray([$spreadObj getValue 0 $i],evector1) [list	[$spreadObj getValue 11 $i]\
 																			[$spreadObj getValue 12 $i]\
 																			[$spreadObj getValue 13 $i]\
-																			[$spreadObj getValue 14 $i]\
+																			]
+	}
+	#put eigenvectors 2x, 2y, 2z in array:
+	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
+		set spreadExtractArray([$spreadObj getValue 0 $i],evector2) [list	[$spreadObj getValue 14 $i]\
 																			[$spreadObj getValue 15 $i]\
 																			[$spreadObj getValue 16 $i]\
-																			[$spreadObj getValue 17 $i]\
+																			]
+	}
+	#put eigenvectors 3x, 3y, 3z in array:
+	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
+		set spreadExtractArray([$spreadObj getValue 0 $i],evector3) [list	[$spreadObj getValue 17 $i]\
 																			[$spreadObj getValue 18 $i]\
 																			[$spreadObj getValue 19 $i]\
 																			]
 	}
-	
 	return [array get spreadExtractArray]
 }
 
@@ -747,12 +754,7 @@ $this proc compute {} {
 						
 						set theResultFromArithmeticCalcName [[$arythmeticModul getResult] setLabel "[$labelfield parameters Materials index $i].am"];# sets label for newly created voxelfield (.am is Amira standard fileformat for data objects)
 						$theResultFromArithmeticCalcName master disconnect;# disconnect, otherwise the result from arithmetic module will be overridden
-						
-						echo "[$theResultFromArithmeticCalcName getTransform -d]"
-						$theResultFromArithmeticCalcName setTransform 2 10 0 0 0 3 0 0 0 0 4 0 0 0 0 5
-						echo "[$theResultFromArithmeticCalcName getTransform -d]"
-						$theResultFromArithmeticCalcName fire 
-				
+						$theResultFromArithmeticCalcName setUndefinedValue 0;#shure is shure ...
 						# append extracted voxel field to global lists:
 						lappend theCompleteExtractedList $theResultFromArithmeticCalcName;
 						lappend theArithmeticExtractedSurfacesList $theResultFromArithmeticCalcName;
@@ -775,6 +777,13 @@ $this proc compute {} {
 							
 							array set extractedValFromSprdsht [$this extractFromSpreadsheet $theResultFromShapeAnalysis];#get the data as array from the spreasheet object
 							#echo "the ARRAY: [array get extractedValFromSprdsht]"
+							
+							set theTestVoxelField [lindex $theArithmeticExtractedSurfacesList 0]
+							echo "[$theTestVoxelField getTransform -d]"
+							echo "$extractedValFromSprdsht(3,c)"
+							eval "$theTestVoxelField setRotation -center $extractedValFromSprdsht(3,c) $extractedValFromSprdsht(3,evector1) 90"
+							echo "[$theTestVoxelField getTransform -d]"
+							$theTestVoxelField fire 
 											
 						}
 					}	
