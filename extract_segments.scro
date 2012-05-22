@@ -13,6 +13,7 @@ $this setVar computeCounter 0
 set theExtractedSurfacesList [list];# keeps track of surfaces of the current run
 set theArithmeticExtractedSurfacesList [list];# keeps track of all extracted surfaces from arithmetic runs
 set theResampleZExtractedSurfacesList [list];# keeps track of all extracted surfaces from resample z runs
+set theAdditionalDataList [list];#keeps track of additional data that $this produces (e.g. spreadsheet objects)
 set theCompleteExtractedList [list];# keeps track of all extracted surfaces from all runs
 
 array set userLabListSelState {};# array for the selection state of user selected toggles 
@@ -27,12 +28,13 @@ set allEmptyConPorts [list];# all empty connction ports of $this
 set labOKFlagList [list];# saves if labels are ok
 
 # i dont´t want name clashes with user given names for modules
-# so here are the hopefully cryptic enough generated names for the modules $this maybe creates:
+# so here are the hopefully cryptic enough generated names for the modules $this can creates:
 set surfaceGenModul XxXSurfaceGen_${moduleName}
 set surfaceViewModul XxXSurfaceView_${moduleName}
 set extractSurfaceModul XxXextractSurface_${moduleName}
 set alignPrincipalAxesModul XxXalignPrincipalAxes_${moduleName}
 set arythmeticModul XxXArithmetic_${moduleName}
+set shapeAnalysisModul XxXShapeAnalysis_${moduleName}
 
 $this proc sayHello {} {
 	global moduleName
@@ -84,7 +86,7 @@ $this proc makeArrayFromAmiraParameters { field { theComplValArr {} } { concatBu
 		
 	upvar 1 $theComplValArr theComplValArrUpvar;# this is neccesary because theComplValArrUpvar should always point one level up (yeah! Tcl has some sort of pointers ;)) to theComplValArr,\
 	 so that theComplValArr gets every time modified even the recursion is in a stackframe deeper
-			
+	
 	set theList [eval "$field parameters [join $concatBundles] list"]
 	if { [llength $theList] == 0 } { echo "$field has no parameters"; return 1 }
 	
@@ -106,6 +108,49 @@ $this proc makeArrayFromAmiraParameters { field { theComplValArr {} } { concatBu
 	
 }
 
+# procedure for extracting a bunch of values from an amira spreadsheet object. :\
+  return value is an array which holds the values. This proc works only in conjunctions with the ShapeAnalysis module \
+  because the generated spreadsheet from this module has a particular order!
+$this proc extractFromSpreadsheet { spreadObj } {
+	
+	array set spreadExtractArray {}
+	
+	#put volume in array:
+	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
+		set spreadExtractArray([$spreadObj getValue 0 $i],v) [list [$spreadObj getValue 1 $i]]
+	}
+	#put center point x, y, z in array:
+	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
+		set spreadExtractArray([$spreadObj getValue 0 $i],c) [list	[$spreadObj getValue 2 $i]\
+																	[$spreadObj getValue 3 $i]\
+																	[$spreadObj getValue 4 $i]\
+																	]
+	}
+	#put eigenvalues x, y, z in array:
+	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
+		set spreadExtractArray([$spreadObj getValue 0 $i],evalue) [list	[$spreadObj getValue 8 $i]\
+																		[$spreadObj getValue 9 $i]\
+																		[$spreadObj getValue 10 $i]\
+																		]
+	}
+	#put eigenvectors 1x, 1y, 1z; 2x, 2y, 2z; 3x, 3y, 3z in array:
+	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
+		set spreadExtractArray([$spreadObj getValue 0 $i],evector) [list	[$spreadObj getValue 11 $i]\
+																			[$spreadObj getValue 12 $i]\
+																			[$spreadObj getValue 13 $i]\
+																			[$spreadObj getValue 14 $i]\
+																			[$spreadObj getValue 15 $i]\
+																			[$spreadObj getValue 16 $i]\
+																			[$spreadObj getValue 17 $i]\
+																			[$spreadObj getValue 18 $i]\
+																			[$spreadObj getValue 19 $i]\
+																			]
+	}
+	
+	return [array get spreadExtractArray]
+}
+
+# procedure which connects $this to all label fields in the pool when invoked:
 $this proc autoConnectToLabelField {} {
 
 	global allConnectedLabFields allEmptyConPorts
@@ -354,13 +399,12 @@ $this proc setCorrespondingPort { module port { portIndex 0 } } {
 
 
 #
-# ******************** the script loops ********************
+# ********** the amira script functions **********
 #
 $this proc constructor {} {
 
 	# $this setNoSave 1;# $this can now correctly be saved with the network, so no need for this ...
 
-	$this sayHello
 	$this select;# $this should be selected after loading
 	$this script show;# will be commented out when $this is finished, only handy for debbuging
 
@@ -430,12 +474,14 @@ $this proc constructor {} {
 	for { set i 1 } { $i <= [$this getVar savedLabels] } { incr i } {
 		$this createConPortButtonsToggles $i
 	}
+	
+	$this sayHello;# when constuctor is loaded prints welcome message in console
 		
 }
 
 $this proc destructor {} {
 	
-	global surfaceGenModul arythmeticModul
+	global surfaceGenModul arythmeticModul shapeAnalysisModul
 	global surfaceViewModul extractSurfaceModul
 	global userLabListSelState lastLabSetArray allConnectedLabFields labCountList labOKFlagList
 	global labSetList emptyConPorts allEmptyConPorts
@@ -445,8 +491,9 @@ $this proc destructor {} {
 	if { [lsearch [all] $surfaceViewModul] != -1 }		{ remove $surfaceViewModul }
 	if { [lsearch [all] $extractSurfaceModul] != -1 }	{ remove $extractSurfaceModul }
 	if { [lsearch [all] $arythmeticModul] != -1 }		{ remove $arythmeticModul }
+	if { [lsearch [all] $shapeAnalysisModul] != -1 }	{ remove $shapeAnalysisModul }
 	
-	# for safety unset all global variables:
+	# for safety, unset all global variables:
 	if { [info exists userLabListSelState] }			{ unset userLabListSelState }
 	if { [info exists allConnectedLabFields] }			{ unset allConnectedLabFields }
 	if { [info exists labCountList] }					{ unset labCountList }
@@ -460,9 +507,9 @@ $this proc destructor {} {
 }
 
 $this proc savePreparation { args } {
-
+	
 	global allConnectedLabFields emptyConPorts
-	# saves a counter which holds how many gui labset´s should be created after loading a network file,
+	# saves a counter which holds how many gui labset´s should be created after loading a network file again,
 	# when $this is saved with a network file:
 	$this setVar savedLabels [expr [llength $allConnectedLabFields] + $emptyConPorts]
 	
@@ -473,8 +520,8 @@ $this proc compute {} {
 	$this testBreak;# for safety...
 	
 	global moduleName theAuthor
-	global surfaceViewModul extractSurfaceModul surfaceGenModul
-	global theExtractedSurfacesList theCompleteExtractedList theArithmeticExtractedSurfacesList theResampleZExtractedSurfacesList
+	global surfaceViewModul extractSurfaceModul surfaceGenModul shapeAnalysisModul
+	global theExtractedSurfacesList theCompleteExtractedList theArithmeticExtractedSurfacesList theResampleZExtractedSurfacesList theAdditionalDataList
 	global alignPrincipalAxesModul arythmeticModul
 	global userLabListSelState userSaveState
 
@@ -495,7 +542,7 @@ $this proc compute {} {
 	if { [$this getVar computeCounter] > 0 } { $this conPortLogic };# procedure conPortLogic will be executed after the first compute run
 	
 	
-	# the following if/elsif statements construct most of the gui when user checks the toggles or connects modules
+	# the following if/elsif statements shows most of the gui when user checks the toggles or connects modules
 	if { $polygonSurfaceToggleIsChecked } {# "polygon surface" is checked
 			
 		$this smoothingSeparator show
@@ -557,6 +604,9 @@ $this proc compute {} {
 			foreach surfaceToRemove $theCompleteExtractedList {
 				remove $surfaceToRemove
 			}
+			foreach additionalData $theAdditionalDataList {
+				remove $additionalData
+			}
 			lset theCompleteExtractedList [list];# delete all list elements
 			$this say "old results overwritten"
 			
@@ -593,7 +643,6 @@ $this proc compute {} {
 				$surfaceViewModul compute
 				
 				
-				
 				set theExtractedSurfacesList [list]
 				set theLabSetFromLabSetList [lindex $labSetList $labfieldCount];# the needed labSet port (e.g. labSet1, labSet2 ...)
 				
@@ -621,7 +670,6 @@ $this proc compute {} {
 						#set newExtractedSurface [[$extractSurfaceModul getResult] getLabel];# amira gives automatic numbers to double entries in the pool so here i will get the actual label back
 						
 						# cleanup the label field parameters:
-											
 						array set newExtractedSurfaceParameters [$this makeArrayFromAmiraParameters $newExtractedSurface];# get the original values from the parameter list
 						# clearing the old parameters:
 						$this clearBundle $newExtractedSurface Materials
@@ -650,7 +698,6 @@ $this proc compute {} {
 						$surfaceViewModul compute
 						
 					}
-		
 				
 				}
 
@@ -670,9 +717,8 @@ $this proc compute {} {
 				
 				
 				remove $alignPrincipalAxesModul;# AlignPrincipalAxes module is not needed any more.
-				set labfieldCount [incr labfieldCount]
+				incr labfieldCount
 			}
-						
 		}
 		
 		if { $voxelDataToggleIsChecked } {
@@ -693,28 +739,47 @@ $this proc compute {} {
 			
 					$this testBreak;# maybe calculation here will take long
 					
-					if { [$this $theLabSetFromLabSetList getValue $i] == 1 && [lindex $labOKFlagList $labfieldCount] == 1} {# check if toogle is checked and label field is ok
+					if { [$this $theLabSetFromLabSetList getValue $i] == 1 && [lindex $labOKFlagList $labfieldCount] == 1 } {# check if toogle is checked and label field is ok
 					
 						$arythmeticModul expr setValue "\(A*\(B==$i\)\)";# sets the extraction expression
 						$arythmeticModul doIt setValue 0;# sometimes it is called "doIt", sometimes it is called "action" for running a amira module, so always look for right command!
 						$arythmeticModul fire
-
+						
 						set theResultFromArithmeticCalcName [[$arythmeticModul getResult] setLabel "[$labelfield parameters Materials index $i].am"];# sets label for newly created voxelfield (.am is Amira standard fileformat for data objects)
 						$theResultFromArithmeticCalcName master disconnect;# disconnect, otherwise the result from arithmetic module will be overridden
+						
+						echo "[$theResultFromArithmeticCalcName getTransform -d]"
+						$theResultFromArithmeticCalcName setTransform 2 10 0 0 0 3 0 0 0 0 4 0 0 0 0 5
+						echo "[$theResultFromArithmeticCalcName getTransform -d]"
+						$theResultFromArithmeticCalcName fire 
 				
 						# append extracted voxel field to global lists:
 						lappend theCompleteExtractedList $theResultFromArithmeticCalcName;
 						lappend theArithmeticExtractedSurfacesList $theResultFromArithmeticCalcName;
 						
 					}
-					if { $voxelOptionAlignPrincipalAxisIsChecked } {
-						
-						
-						
-					}
-	
 				}
-				set labfieldCount [incr labfieldCount]	
+				if { $voxelOptionAlignPrincipalAxisIsChecked } {
+				
+					for { set i 0 } {$i < [$this $theLabSetFromLabSetList getNum] } { incr i } {
+					
+						if { [$this $theLabSetFromLabSetList getValue $i] == 1 && [lindex $labOKFlagList $labfieldCount] == 1} {
+										
+							$this createModuleAndConnectIfOkToSource HxShapeAnalysis $shapeAnalysisModul $labelfield;
+							$shapeAnalysisModul action setValue 0
+							$shapeAnalysisModul fire
+							
+							set theResultFromShapeAnalysis [$shapeAnalysisModul getResult]
+							$theResultFromShapeAnalysis master disconnect
+							lappend theAdditionalDataList $theResultFromShapeAnalysis;
+							
+							array set extractedValFromSprdsht [$this extractFromSpreadsheet $theResultFromShapeAnalysis];#get the data as array from the spreasheet object
+							#echo "the ARRAY: [array get extractedValFromSprdsht]"
+											
+						}
+					}	
+				}
+				incr labfieldCount
 			}
 			
 		}
@@ -745,15 +810,14 @@ $this proc compute {} {
 			
 		}
 		
-		
 		if { [info exists labfieldCount] } { unset labfieldCount theLabSetFromLabSetList }
 		
 		# user info which will be shown in the console if necessary:
-		if {$allConnectedLabFields eq "" && [$this getVar runCounter] > 0} {
-					$this say "nothing to process - no label field connected"
+		if { $allConnectedLabFields eq "" && [$this getVar runCounter] > 0 } {
+			$this say "nothing to process - no label field connected"
 		}
-		if {[lrange $resultSelectionState 3 5] eq [list 0 0 0] && [$this getVar runCounter] > 0} {
-				$this say "nothing to process - choose on ore more result options"
+		if { [lrange $resultSelectionState 3 5] eq [list 0 0 0] && [$this getVar runCounter] > 0 } {
+			$this say "nothing to process - choose on ore more result options"
 		}
 		foreach { key value } [array get userLabListSelState] {# searches if user has selected at least one label in the label sets
 				
