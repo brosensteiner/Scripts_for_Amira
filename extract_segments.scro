@@ -1,5 +1,7 @@
 # Amira-Script-Object V3.0
 
+source "[file dirname [info script]]/amira_procs.tcl";#relative path to amira_procs.tcl
+
 # Register the packages
 package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlevel 8.4.19)
 
@@ -11,12 +13,13 @@ $this setVar runCounter 0
 $this setVar computeCounter 0
 
 set theExtractedSurfacesList [list];# keeps track of surfaces of the current run
-set theArithmeticExtractedSurfacesList [list];# keeps track of all extracted surfaces from arithmetic runs
+set theArithmeticExtractedVoxelList [list];# keeps track of all extracted surfaces from arithmetic runs
 set theResampleZExtractedSurfacesList [list];# keeps track of all extracted surfaces from resample z runs
 set theAdditionalDataList [list];#keeps track of additional data that $this produces (e.g. spreadsheet objects)
+set volRenList [list];#$this maybe creats Volren modules and they will be collected in this list
 set theCompleteExtractedList [list];# keeps track of all extracted surfaces from all runs
 
-array set userLabListSelState {};# array for the selection state of user selected toggles 
+array set userLabListSelState {};# array for the selection state of user selected toggles
 array set lastLabSetArray {};# array of all labels in last labSet
 set labCountList [list];# count list of all lab gui toogles
 set allConnectedLabFields [list];# list of all connection ports which have a source
@@ -35,375 +38,6 @@ set extractSurfaceModul XxXextractSurface_${moduleName}
 set alignPrincipalAxesModul XxXalignPrincipalAxes_${moduleName}
 set arythmeticModul XxXArithmetic_${moduleName}
 set shapeAnalysisModul XxXShapeAnalysis_${moduleName}
-
-$this proc sayHello {} {
-	global moduleName
-	echo "\n************ module \"$moduleName\" loaded successfully :) ************\n"
-}
-$this proc say { something } {
-	global moduleName
-	echo "$moduleName: $something"
-}
-# procedure which can add new parameters to a amira field. 1. arg: the field, 2. arg: a new Bundle, args: pairs of parameter/values (e.g. Color { 1 0 1 })
-$this proc stampField { field theBundle args } {
-
-	$field parameters newBundle $theBundle
-	foreach { par val } $args {
-		eval "$field parameters $theBundle setValue $par $val"
-	}
-
-}
-# clear items in a specified Bundle in a amira field (saves some typing):
-$this proc clearBundle { field args } {
-
-	if { [llength $args] > 1 } {
-		set lastElement [lindex $args end]
-		set restElements [lrange $args 0 end-1]
-	} else {# when only one bundle in args (e.g. Materials)
-		set lastElement $args
-		set restElements ""
-	}
-	
-	foreach item [eval "$field $restElements parameters $lastElement list"] {
-		eval "$field $restElements parameters $lastElement $item setFlag NO_DELETE 0"
-		eval "$field $restElements parameters $lastElement remove $item"
-	}
-	
-}
-
-
-# simple port test: procedure returns 1 when module has port, otherwise it returns 0
-$this proc hasPort {modul port} {
-	upvar #1 $modul myModule
-	if { [lsearch [$myModule allPorts] $port] != -1 } { return 1 } else { return 0 }
-}
-
-# procedure which returns all parameters of a given amira field in a formatted array, were every parameter/value can be retrieved \
-  procedure is needed, because amira´s tcl interface can´t do it in one step \
-  amira field parameter lists are not that big, so this recursive approach should make not to much overhead. \
-  procedure needs a the only argument a amira field (e.g. label field)
-$this proc makeArrayFromAmiraParameters { field { theComplValArr {} } { concatBundles {} } { recloop 0 } } {
-		
-	upvar 1 $theComplValArr theComplValArrUpvar;# this is neccesary because theComplValArrUpvar should always point one level up (yeah! Tcl has some sort of pointers ;)) to theComplValArr,\
-	 so that theComplValArr gets every time modified even the recursion is in a stackframe deeper
-	
-	set theList [eval "$field parameters [join $concatBundles] list"]
-	if { [llength $theList] == 0 } { echo "$field has no parameters"; return 1 }
-	
-	foreach element $theList {
-		
-		if { [eval "$field parameters [join $concatBundles] $element isBundle"] } {
-			
-			$this makeArrayFromAmiraParameters $field theComplValArrUpvar [concat $concatBundles $element] [incr recloop]
-			
-		} else {
-		
-			set theValue [eval "$field parameters [join $concatBundles] $element getValue"]
-			if { ![info exists theComplValArrUpvar([join $concatBundles ,],$element)] } {
-				 set theComplValArrUpvar([join $concatBundles ,],$element) [list $element $theValue]
-			}
-		}
-	}
-	return [array get theComplValArrUpvar]
-	
-}
-
-# procedure for extracting a bunch of values from an amira spreadsheet object. :\
-  return value is an array which holds the values. This proc works only in conjunctions with the ShapeAnalysis module \
-  because the generated spreadsheet from this module has a particular order!
-$this proc extractFromSpreadsheet { spreadObj } {
-	
-	array set spreadExtractArray {}
-	
-	#put volume in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],v) [list [$spreadObj getValue 1 $i]]
-	}
-	#put center point x, y, z in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],c) [list	[$spreadObj getValue 2 $i]\
-																	[$spreadObj getValue 3 $i]\
-																	[$spreadObj getValue 4 $i]\
-																	]
-	}
-	#put eigenvalues x, y, z in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],evalue) [list	[$spreadObj getValue 8 $i]\
-																		[$spreadObj getValue 9 $i]\
-																		[$spreadObj getValue 10 $i]\
-																		]
-	}
-	#put eigenvectors 1x, 1y, 1z in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],evector1) [list	[$spreadObj getValue 11 $i]\
-																			[$spreadObj getValue 12 $i]\
-																			[$spreadObj getValue 13 $i]\
-																			]
-	}
-	#put eigenvectors 2x, 2y, 2z in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],evector2) [list	[$spreadObj getValue 14 $i]\
-																			[$spreadObj getValue 15 $i]\
-																			[$spreadObj getValue 16 $i]\
-																			]
-	}
-	#put eigenvectors 3x, 3y, 3z in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],evector3) [list	[$spreadObj getValue 17 $i]\
-																			[$spreadObj getValue 18 $i]\
-																			[$spreadObj getValue 19 $i]\
-																			]
-	}
-	return [array get spreadExtractArray]
-}
-
-# procedure which connects $this to all label fields in the pool when invoked:
-$this proc autoConnectToLabelField {} {
-
-	global allConnectedLabFields allEmptyConPorts
-	
-	set theLabConPortsList [lrange [$this connectionPorts] 1 end]
-	set theList [all HxUniformLabelField3]
-	
-	foreach item $theLabConPortsList {
-		$this $item disconnect
-	}
-	
-	foreach item $theList {
-		$this [lindex $allEmptyConPorts 0] connect $item
-		$this compute
-	}
-}
-
-# function which checks on some $this states and sets the labels of "label set" ports, so every time something happens with $this \
-  it knows it´s actual state and it can be asked about it:
-$this proc checkModuleStateAndSetVariables {} {
-
-	global allConnectedLabFields allEmptyConPorts labCountList
-	global lastLabSetArray userLabListSelState labSetList emptyConPorts labOKFlagList
-	global userResultSelState userSaveState
-	
-	$this fire
-	
-	# first make all empty:
-	array unset userLabListSelState
-	array unset lastLabSetArray
-	set allConnectedLabFields [list]
-	set allEmptyConPorts [list]
-	set labCountList [list]
-	set labSetList [list]
-	set emptyConPorts 0
-	set labOKFlagList [list]
-	
-	# and then update again the lists/arrays:
-	for { set i 1 } { $i < [llength [$this connectionPorts]] } { incr i } {
-	
-		if { [$this  [lindex [$this connectionPorts] $i] source] ne "" } {
-			
-			if { [[$this  [lindex [$this connectionPorts] $i] source] getControllingData] eq "" } {# test if label field has a image data field attached (e.g. needed for arithmetic calculations)
-				$this say "warning! [$this  [lindex [$this connectionPorts] $i] source] has no image data field connected,\nfor processing of \"[$this result getLabel 2]\" and \"[$this result getLabel 2]\" results this is required"
-				lappend labOKFlagList 0
-			} else { lappend labOKFlagList 1 }
-			
-			lappend allConnectedLabFields [$this [lindex [$this connectionPorts] $i] source]
-			lappend labCountList [[$this labFieldPortCon$i source] parameters Materials nBundles]
-			lappend labSetList labSet$i
-			set userLabListSelState($i) [$this labSet$i getState]
-			
-			for { set x 0 } { $x < [$this labSet$i getNum] } { incr x } {
-				set lastLabSetArray([expr $x + 1]) [$this labSet$i getLabel $x]
-			}
-
-			# show the ports when connected to label field:
-			$this labSeparator$i show
-			$this labSetSelBottons$i show
-			$this labSet$i show
-			
-		} else {
-			
-			set emptyConPorts [incr emptyConPorts];# count every empty connection port
-			lappend allEmptyConPorts [lindex [$this connectionPorts] $i]
-			
-			# hide the ports when not connected to label field:
-			$this labSeparator$i hide
-			$this labSetSelBottons$i hide
-			$this labSet$i hide
-			
-		}
-		
-	}
-	
-	# saving states for the static gui elements:
-	set userResultSelState [$this result getState]
-	set userSaveState [$this saveResults getState]
-	
-	# this loop sets the labels for each dynamic toggle in labSet ports:
-	for { set x 1 } { $x < [llength [$this connectionPorts]] } { incr x } {
-	
-		if { [$this labFieldPortCon$x isNew] == 1 && [$this labFieldPortCon$x source] ne ""  } {#set the labels only new when connection port is new - reduces overhead
-					
-			$this labSet$x setNum [[$this labFieldPortCon$x source] parameters Materials nBundles];# get the number of material from the source and set number of toogles
-			for { set y 0 } { $y < [$this labSet$x getNum] } { incr y } {
-				$this labSet$x setLabel $y [lindex [[$this labFieldPortCon$x source] parameters Materials list] $y]
-			}
-			
-		}
-		
-	}
-	
-	# printing $this info (only for debugging):
-	$this say "\nuserLabListSelState: [array get userLabListSelState]"
-	$this say "lastLabSetArray: [array get lastLabSetArray]"
-	$this say "allConnectedLabFields: $allConnectedLabFields"
-	$this say "allEmptyConPorts: $allEmptyConPorts"
-	$this say "emptyConPorts: $emptyConPorts"
-	$this say "labOKFlagList: $labOKFlagList"
-	$this say "labCountList: $labCountList"
-	$this say "labSetList: $labSetList"
-	$this say "userResultSelState: $userResultSelState"
-	$this say "userSaveState: $userSaveState\n"
-	
-}
-
-# procedure which will be executed when a "None" button is pressed
-$this proc bottonNonePressed { num } {
-	
-	for { set i 0 } { $i <= [$this labSet$num getNum] } { incr i } {
-		$this labSet$num setValue $i 0
-	}
- 	$this checkModuleStateAndSetVariables
- 			
-}
-# procedure which will be executed when a "All" button is pressed
-$this proc bottonAllPressed { num } {
- 	
-	for { set i 0 } { $i <= [$this labSet$num getNum] } { incr i } {
-		$this labSet$num setValue $i 1
-	}
-	$this checkModuleStateAndSetVariables;
-  			
-}
-
-# procedure creates gui elements (separator, bottons, toggles) for a connected lab field \
-  argument i is the number of portname
-$this proc createConPortButtonsToggles { i } {
-
-	global allConnectedLabFields labCountList
-	global lastLabSetArray labSetList
-	global userLabListSelState userResultSelState userSaveState emptyConPorts
-		
-	$this newPortConnection labFieldPortCon$i HxUniformLabelField3
-	
-	# creates gui for material selection toggles:
-	$this newPortSeparator labSeparator$i
-	$this newPortButtonList labSetSelBottons$i 2
-	$this labSetSelBottons$i setLabel "Selection $i"
-	$this labSetSelBottons$i setLabel 0 "None"
-	$this labSetSelBottons$i setLabel 1 "All"
-	$this newPortToggleList labSet$i 0;# only init, right toggles numbers will be determind when label field is connected
-	$this labSet$i setLabel "Label set $i"
-	
-	# build strings for setCmc commands, because $i has to be evaluated before it is given as argument for setCmd
-	# every new botton set will get a individual procedure assigned (which will be executed every time a "None" or "All" botton is pressed),
-	# because $i changes with every run of createConPortButtonsToggles procedure
-	eval "\$this labSetSelBottons\$i setCmd 0 \{ \$this bottonNonePressed " "$i \}"
-	eval "\$this labSetSelBottons\$i setCmd 1 \{ \$this bottonAllPressed " "$i \}"
-	
-	# ports should initially hidden:
-	$this labSeparator$i hide
-	$this labSetSelBottons$i hide
-	$this labSet$i hide
-	
-	$this checkModuleStateAndSetVariables;
-	
-}
-# procedure deletes gui elements (separator, bottons, toggles) for a connected lab field \
-  argument i is the number of portname
-$this proc deleteConPortButtonsToggles { i } {
-		
-	$this deletePort labFieldPortCon$i
-	$this deletePort labSeparator$i
-	$this deletePort labSetSelBottons$i
-	$this deletePort labSet$i
-	
-	$this checkModuleStateAndSetVariables;
-	
-}
-
-# procedure which will make shure that there is always a free connection port for connecting a label field \
-  all connection ports at the end will be deleted if there is a free connection port somewhere in the middle \
-  (is a smarter logic that for example the amira´s own ExtractSurface module has)
-$this proc conPortLogic {} {
-
-	global emptyConPorts
-	
-	# create new connecton port when the last connecton port in the list has connected a label field:
-	if { [$this [lindex [$this connectionPorts] end] source] ne "" && $emptyConPorts == 0 } {
-		
-		$this createConPortButtonsToggles [llength [$this connectionPorts]];
-	}
-	# delete all connection ports beginning at the end until the first connction port with a connected label field is found:
-	for { set i 0 } { $i < [llength [$this connectionPorts]] } { incr i } {
-	
-		if { [$this [lindex [$this connectionPorts] end] source] eq "" && $emptyConPorts > 1 } {
-			$this deleteConPortButtonsToggles [expr [llength [$this connectionPorts]] - 1];
-		}
-		
-	}
-
-}
-
-# procedure which creates moduleType and connects it with sourceName module and checks if connection is valid \
-  moduleName is the name of the module in the pool \
-  if moduleName module does not exist it also gets created in the pool \
-  function returns the name string of the newly created module
-$this proc createModuleAndConnectIfOkToSource { moduleType moduleName sourceName { conPortIndex 0 } } {
-	
-	if { [lsearch [all $moduleType] $moduleName] == -1 } {# test if module is already in the pool -1 := not in pool
-	
-		 	set returnedModule [create $moduleType $moduleName]
-		 	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex];# sets the desired connectionPort name, default is 0
-		 	if { [$moduleName $theConnectionPort validSource $sourceName] == 1 } {
-		 		if { [$moduleName $theConnectionPort source] ne $sourceName } { $moduleName $theConnectionPort connect $sourceName };
-		 	} else { $this say "$sourceName is no valid source for $moduleName" }
-		 	
-		 } else {
-		 	
-		 	set returnedModule $moduleName
-		 	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex]
-		 	if { [$moduleName $theConnectionPort validSource $sourceName] == 1 } {
-		 		if { [$moduleName $theConnectionPort source] ne $sourceName } { $moduleName $theConnectionPort connect $sourceName };
-		 	} else { $this say "$sourceName is no valid source for $moduleName" }
-		 	
-	}
-	
-	return $returnedModule
-	
-}
-
-# switches the given module port remotely from $this ($this must have a corresponding (i.e. same) port!) \
-  it works like the amira built in port connect "<modulename 1> <P0 name> connect < modulename 2> [<P1 name>]" exept, \
-  that it works (e.g. there are some bugs with menu entry numeration in amira modules)
-$this proc setCorrespondingPort { module port { portIndex 0 } } {
-
-	upvar #0 $module myModule
-	
-	if { [info exists myModule] == 0 } {
-		$this say "hm\.\.\. $myModule module does not exist, maybe you deleted it - restart $moduleName"
-	}
-	
-	$this fire;# infinit loop in Amira when here no update of all downstream modules - crashes most of the time Amira
-	
-	switch -exact [$this $port getTypeId] {
-		HxPortMultiMenu { $myModule $port setValueString $portIndex [$this $port getLabel [$this $port getValue $portIndex]] }
-		HxPortToggleList { $myModule $port setValue  $portIndex [$this $port getValue $portIndex] }
-		default { $this say "proc setCorrespondingPort: could not find a corresponding port" }
-	};# setValueString is more robust than index counting with setValue
-	
-	$myModule compute
-
-}
-
 
 #
 # ********** the amira script functions **********
@@ -462,19 +96,23 @@ $this proc constructor {} {
 	
 	# recreates the options port from Arithmetic
 	$this newPortSeparator voxelSeparator
-	$this newPortToggleList voxelOptions 1
+	$this newPortToggleList voxelOptions 2
 	$this voxelOptions setLabel "Voxel options"
 	$this voxelOptions setLabel 0 "align principal axis"
+	$this voxelOptions setLabel 1 "connect results to Volren module"
+	
+	#creates colormap port for the volren modules when "connect results to Volren module" is checked
+	$this newPortColormap colormap
 	
 	# creates resample z options
 	$this newPortSeparator resampleSeparator
 	$this newPortToggleList resampleOptions 2
 	$this resampleOptions setLabel "Resample options"
 	
-		
+	
 	# when savedLabes is not defined it will with this if statement (will only be the case at first loading $this, \
 	  afterwards it is always defined -> see proc savePreparation):
-	if { ![$this hasVar savedLabels] } {# hasVar is undocumented in Amira ducomentation, but indispensable ...
+	if { ![$this hasVar savedLabels] } {# hasVar is undocumented in Amira documentation, but indispensable ...
 		 $this setVar savedLabels 1
 	}
 	# this loop creates the needed dynamic gui elements (savedLabels global variable is the counter for how many will be created):
@@ -528,7 +166,7 @@ $this proc compute {} {
 	
 	global moduleName theAuthor
 	global surfaceViewModul extractSurfaceModul surfaceGenModul shapeAnalysisModul
-	global theExtractedSurfacesList theCompleteExtractedList theArithmeticExtractedSurfacesList theResampleZExtractedSurfacesList theAdditionalDataList
+	global theExtractedSurfacesList theCompleteExtractedList theArithmeticExtractedVoxelList theResampleZExtractedSurfacesList theAdditionalDataList volRenList
 	global alignPrincipalAxesModul arythmeticModul
 	global userLabListSelState userSaveState
 
@@ -543,54 +181,56 @@ $this proc compute {} {
 	set resultSelectionState [$this result getState]
 	
 	set voxelOptionAlignPrincipalAxisIsChecked [$this voxelOptions getValue 0]
+	set voxelOptionConnectVolrenIsChecked [$this voxelOptions getValue 1]
 	
 	$this checkModuleStateAndSetVariables;
 	
 	if { [$this getVar computeCounter] > 0 } { $this conPortLogic };# procedure conPortLogic will be executed after the first compute run
 	
 	
-	# the following if/elsif statements shows most of the gui when user checks the toggles or connects modules
+	# the following if/elsif statements show/hide most of the gui when user checks the toggles or connects modules
 	if { $polygonSurfaceToggleIsChecked } {# "polygon surface" is checked
 			
 		$this smoothingSeparator show
 		$this smoothing show
 		$this SmoothingSliderPort show
 		$this options show
-				
-				
 	} else {# "polygon surface" is not checked
 	
 		$this smoothingSeparator hide
 		$this smoothing hide
 		$this SmoothingSliderPort hide
 		$this options hide
-		
 	}
 	if { $voxelDataToggleIsChecked } {# "voxel data" is checked
 			
 		$this voxelSeparator show
 		$this voxelOptions show
-				
-				
 	} else {# "voxel data" is not checked
-		# TODO: here comes code when "voxel data" is not checked
+		
 		$this voxelSeparator hide
 		$this voxelOptions hide
-		
 	}
 	if { $resampleZToggleIsChecked } {# "resample z" is checked
 			
 		$this resampleSeparator show
 		$this resampleOptions show
-				
 	} else {# "resample z" is not checked
-		# TODO: here comes code when "resample z" is not checked
 		
 		$this resampleSeparator hide
 		$this resampleOptions hide
-		
 	}
+	if { $voxelOptionConnectVolrenIsChecked } then { $this colormap show } else { $this colormap hide }
 	
+	# the next "if" is neccesary because i don´t get the interactive mapping of ports in amira to work (at least with colormap ports),\
+	  so the eventually created volren modules get updated this way when the colormap port of $this will be modified by user:
+	if { [$this colormap isNew] && [llength volRenList] != 0 } then {# when colormap port has changed and there is something in volRenList list
+	
+		foreach item $volRenList {
+			$item color0 setState [$this colormap getState]
+			$item compute
+		}
+	}
 	
 	# ********** actions ********** \
 	  enters only here when "Apply" button ($this action port) of $this is pressed:
@@ -605,7 +245,8 @@ $this proc compute {} {
 		workArea setProgressValue 0.4
 		
 		
-		# if toggle "overwrite" is set and list is not empty the next statement deletes all previously by $this generated surfaces:
+		# if toggle "overwrite" is set and list is not empty the next statement deletes all previously by $this generated \
+		  surface- voxel- and additional-data lists: 
 		if { $overwriteToggleIsChecked == 1 && $theCompleteExtractedList ne [list] } {
 		
 			foreach surfaceToRemove $theCompleteExtractedList {
@@ -614,7 +255,13 @@ $this proc compute {} {
 			foreach additionalData $theAdditionalDataList {
 				remove $additionalData
 			}
-			lset theCompleteExtractedList [list];# delete all list elements
+			foreach volRenModul $volRenList {
+				remove $volRenModul
+			}
+			# delete all list elements:
+			set theCompleteExtractedList [list]
+			set theAdditionalDataList [list]
+			set volRenList [list]
 			$this say "old results overwritten"
 			
 		}
@@ -678,6 +325,8 @@ $this proc compute {} {
 						
 						# cleanup the label field parameters:
 						array set newExtractedSurfaceParameters [$this makeArrayFromAmiraParameters $newExtractedSurface];# get the original values from the parameter list
+						#echo "***[array get newExtractedSurfaceParameters]"
+						
 						# clearing the old parameters:
 						$this clearBundle $newExtractedSurface Materials
 						eval "$newExtractedSurface parameters Materials newBundle $theLabel"
@@ -730,8 +379,9 @@ $this proc compute {} {
 		
 		if { $voxelDataToggleIsChecked } {
 		
-			set theArithmeticExtractedSurfacesList [list]
-			set labfieldCount 0
+			set theArithmeticExtractedVoxelList [list]
+			set labfieldCount 0;#counter for foreach loop below
+			set xCount 0;#this counter will keep track of the items in $theArithmeticExtractedVoxelList when a $theItemToTransform is needed in the foreach loop below
 			
 			foreach labelfield $allConnectedLabFields {
 				
@@ -749,25 +399,31 @@ $this proc compute {} {
 					if { [$this $theLabSetFromLabSetList getValue $i] == 1 && [lindex $labOKFlagList $labfieldCount] == 1 } {# check if toogle is checked and label field is ok
 					
 						$arythmeticModul expr setValue "\(A*\(B==$i\)\)";# sets the extraction expression
-						$arythmeticModul doIt setValue 0;# sometimes it is called "doIt", sometimes it is called "action" for running a amira module, so always look for right command!
+						$arythmeticModul doIt setValue 0;# sometimes it is called "doIt", sometimes it is called "action" for running a amira module, so always look for appropriate command!
 						$arythmeticModul fire
 						
 						set theResultFromArithmeticCalcName [[$arythmeticModul getResult] setLabel "[$labelfield parameters Materials index $i].am"];# sets label for newly created voxelfield (.am is Amira standard fileformat for data objects)
 						$theResultFromArithmeticCalcName master disconnect;# disconnect, otherwise the result from arithmetic module will be overridden
 						$theResultFromArithmeticCalcName setUndefinedValue 0;#shure is shure ...
+						
+						#some additional info: 	
+						$this stampField $theResultFromArithmeticCalcName ModuleInfo ModuleName $moduleName author $theAuthor
+						
 						# append extracted voxel field to global lists:
 						lappend theCompleteExtractedList $theResultFromArithmeticCalcName;
-						lappend theArithmeticExtractedSurfacesList $theResultFromArithmeticCalcName;
+						lappend theArithmeticExtractedVoxelList $theResultFromArithmeticCalcName;
 						
 					}
 				}
 				if { $voxelOptionAlignPrincipalAxisIsChecked } {
-				
-					for { set i 0 } {$i < [$this $theLabSetFromLabSetList getNum] } { incr i } {
-					
+									
+					for { set i 0 } {$i < [$this $theLabSetFromLabSetList getNum] } { incr i } {						
+						
 						if { [$this $theLabSetFromLabSetList getValue $i] == 1 && [lindex $labOKFlagList $labfieldCount] == 1} {
-										
+							
+							# the shape analysis:
 							$this createModuleAndConnectIfOkToSource HxShapeAnalysis $shapeAnalysisModul $labelfield;
+							$shapeAnalysisModul Field connect [$labelfield getControllingData]
 							$shapeAnalysisModul action setValue 0
 							$shapeAnalysisModul fire
 							
@@ -775,22 +431,38 @@ $this proc compute {} {
 							$theResultFromShapeAnalysis master disconnect
 							lappend theAdditionalDataList $theResultFromShapeAnalysis;
 							
-							array set extractedValFromSprdsht [$this extractFromSpreadsheet $theResultFromShapeAnalysis];#get the data as array from the spreasheet object
-							#echo "the ARRAY: [array get extractedValFromSprdsht]"
+							array set extrValFromSprdsht [$this extractFromSpreadsheet $theResultFromShapeAnalysis];#get the data as array from the spreasheet object
 							
-							set theTestVoxelField [lindex $theArithmeticExtractedSurfacesList 0]
-							echo "[$theTestVoxelField getTransform -d]"
-							echo "$extractedValFromSprdsht(3,c)"
-							eval "$theTestVoxelField setRotation -center $extractedValFromSprdsht(3,c) $extractedValFromSprdsht(3,evector1) 90"
-							echo "[$theTestVoxelField getTransform -d]"
-							$theTestVoxelField fire 
-											
+							set theItemToTransform [lindex $theArithmeticExtractedVoxelList $xCount];# get the needed item from list with xCount
+
+							echo "[$theItemToTransform getTransform -d]"
+							eval "$theItemToTransform setRotation -center $extrValFromSprdsht($i,c) $extrValFromSprdsht($i,evector2) 90"
+							set theInverse [$theItemToTransform getInverseTransform]
+							eval "$theItemToTransform multTransform -l $theInverse"
+							echo "[$theItemToTransform getTransform -d]"
+							$theItemToTransform fire 
+							incr xCount
 						}
-					}	
+					}
 				}
 				incr labfieldCount
 			}
-			
+			if { $voxelOptionConnectVolrenIsChecked } then {
+				
+				foreach item $theArithmeticExtractedVoxelList {
+					set aNewVolrenModule [create HxVolren]
+					lappend volRenList $aNewVolrenModule
+					$aNewVolrenModule data connect $item
+
+					$aNewVolrenModule color0 allowEditing 1
+					#$aNewVolrenModule color0 connect $this colormap;#WHY IS IT NOT POSSIBBLE TO DO THIS?, ACCORDING TO AMIRA DOCU IT SHOULD!!! -> always error
+					$aNewVolrenModule color0 setState [$this colormap getState]
+						
+					#$this fire
+					$aNewVolrenModule fire
+				}
+			}
+			unset xCount labfieldCount
 		}
 		
 		if { $resampleZToggleIsChecked } {
