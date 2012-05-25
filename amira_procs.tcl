@@ -39,6 +39,13 @@ $this proc hasPort {modul port} {
 	if { [lsearch [$myModule allPorts] $port] != -1 } { return 1 } else { return 0 }
 }
 
+#simple proc for switching between positiv and negative numbers:
+$this proc switchNumberSigns { args } {
+	set list [list]
+	foreach i $args { lappend list [expr -$i] }
+	return $list
+}
+
 # procedure for extracting a bunch of values from an amira spreadsheet object generated from the ShapeAnalysis modul. :\
   return value is an array which holds the values ("array set varName spreadExtractArray arg" catches the array returned \
   by extractFromSpreadsheet again in an array). This proc works only in conjunctions with the ShapeAnalysis module \
@@ -97,10 +104,29 @@ $this proc extractFromSpreadsheet { spreadObj } {
 	return [array get spreadExtractArray]
 }
 
+# proc for finding some shape parameters of labels in a given labelfield and return of an array which holds the shape parameters\
+  (e.g. eigenvalues, eigenvectors, mass -> see procedure "extractFromSpreadsheet")\
+  this proc uses the ShapeAnalysis module to obtain the shape parameters. If the mass (voxel grey values) should be included in the shape parameter calculation the optional value "massCalc" must be 1
+$this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnalysisModule" } { massCalc 0 } } {
+	
+	# the shape analysis:
+	$this createModuleAndConnectIfOkToSource HxShapeAnalysis $shapeAnalysisModul $labelfield;#$shapeAnalysisModul is global!!! so it has to be deleted in the destructor proc, otherwise it remains in the pool (it´s global because then it has not every time be generated anew for every call of "makeShapeAnalysis" and stays in the pool)
+	if { $massCalc } then { $shapeAnalysisModul Field connect [$labelfield getControllingData] }
+	$shapeAnalysisModul action setValue 0
+	$shapeAnalysisModul fire
+	
+	set theResultFromShapeAnalysis [$shapeAnalysisModul getResult]
+	array set extrValFromSprdsht [$this extractFromSpreadsheet $theResultFromShapeAnalysis]
+	remove $theResultFromShapeAnalysis
+	return [array get extrValFromSprdsht]
+	
+}
+
+
 # procedure which returns all parameters of a given amira field in a formatted array, were every parameter/value can be fetched. \
   procedure is needed, because amira´s tcl interface can´t do it in one step \
   amira field parameter lists are not that big, so this recursive approach should make not to much overhead. \
-  procedure needs a the only argument a amira field (e.g. label field). the rest of the optional arguments are for the recursion
+  procedure needs as the only argument a amira field (e.g. label field). the rest of the optional arguments are for the recursion
 $this proc makeArrayFromAmiraParameters { field { theComplValArr {} } { concatBundles {} } { recloop 0 } } {
 		
 	upvar 1 $theComplValArr theComplValArrUpvar;# this is neccesary because theComplValArrUpvar should always point one level up (yeah! Tcl has some sort of pointers ;)) to theComplValArr,\

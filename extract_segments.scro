@@ -96,12 +96,14 @@ $this proc constructor {} {
 	
 	# recreates the options port from Arithmetic
 	$this newPortSeparator voxelSeparator
-	$this newPortToggleList voxelOptions 2
+	$this newPortToggleList voxelOptions 3
 	$this voxelOptions setLabel "Voxel options"
 	$this voxelOptions setLabel 0 "align principal axis"
-	$this voxelOptions setLabel 1 "connect results to Volren module"
+	$this voxelOptions setLabel 1 "use mass"
+	$this voxelOptions setLabel 2 "connect results to Volren"
 	
-	#creates colormap port for the volren modules when "connect results to Volren module" is checked
+	#creates colormap port for the volren modules when "connect results to Volren module" is checked \
+	 this port will allow remote controlling of all volren modules in the pool which $this created
 	$this newPortColormap colormap
 	
 	# creates resample z options
@@ -181,7 +183,8 @@ $this proc compute {} {
 	set resultSelectionState [$this result getState]
 	
 	set voxelOptionAlignPrincipalAxisIsChecked [$this voxelOptions getValue 0]
-	set voxelOptionConnectVolrenIsChecked [$this voxelOptions getValue 1]
+	set voxelOptionMassIsChecked [$this voxelOptions getValue 1]
+	set voxelOptionConnectVolrenIsChecked [$this voxelOptions getValue 2]
 	
 	$this checkModuleStateAndSetVariables;
 	
@@ -210,6 +213,13 @@ $this proc compute {} {
 		
 		$this voxelSeparator hide
 		$this voxelOptions hide
+	}
+	if { $voxelOptionAlignPrincipalAxisIsChecked } {
+	
+		 	$this voxelOptions setSensitivity 1 1
+		 } else {
+		 
+		 	$this voxelOptions setSensitivity 1 0
 	}
 	if { $resampleZToggleIsChecked } {# "resample z" is checked
 			
@@ -422,23 +432,16 @@ $this proc compute {} {
 						if { [$this $theLabSetFromLabSetList getValue $i] == 1 && [lindex $labOKFlagList $labfieldCount] == 1} {
 							
 							# the shape analysis:
-							$this createModuleAndConnectIfOkToSource HxShapeAnalysis $shapeAnalysisModul $labelfield;
-							$shapeAnalysisModul Field connect [$labelfield getControllingData]
-							$shapeAnalysisModul action setValue 0
-							$shapeAnalysisModul fire
-							
-							set theResultFromShapeAnalysis [$shapeAnalysisModul getResult]
-							$theResultFromShapeAnalysis master disconnect
-							lappend theAdditionalDataList $theResultFromShapeAnalysis;
-							
-							array set extrValFromSprdsht [$this extractFromSpreadsheet $theResultFromShapeAnalysis];#get the data as array from the spreasheet object
+							array set valFromSprdsht [$this makeShapeAnalysis $labelfield $shapeAnalysisModul 1];
 							
 							set theItemToTransform [lindex $theArithmeticExtractedVoxelList $xCount];# get the needed item from list with xCount
 
 							echo "[$theItemToTransform getTransform -d]"
-							eval "$theItemToTransform setRotation -center $extrValFromSprdsht($i,c) $extrValFromSprdsht($i,evector2) 90"
-							set theInverse [$theItemToTransform getInverseTransform]
-							eval "$theItemToTransform multTransform -l $theInverse"
+							#eval "$theItemToTransform setRotation -center $valFromSprdsht($i,c) $valFromSprdsht($i,evector2) 90"
+							
+							eval "$theItemToTransform setTranslation [eval $this switchNumberSigns $valFromSprdsht($i,c)]";#translates center of object in 3D space to origin (i.e. 0, 0, 0)
+							echo "theROTATION: [$theItemToTransform getRotation]"
+							eval "$theItemToTransform rotate -wx 90"
 							echo "[$theItemToTransform getTransform -d]"
 							$theItemToTransform fire 
 							incr xCount
@@ -455,7 +458,7 @@ $this proc compute {} {
 					$aNewVolrenModule data connect $item
 
 					$aNewVolrenModule color0 allowEditing 1
-					#$aNewVolrenModule color0 connect $this colormap;#WHY IS IT NOT POSSIBBLE TO DO THIS?, ACCORDING TO AMIRA DOCU IT SHOULD!!! -> always error
+					#$aNewVolrenModule color0 connect $this colormap;#WHY IS IT NOT POSSIBLE TO DO THIS?, ACCORDING TO AMIRA DOCU IT SHOULD!!! -> always error
 					$aNewVolrenModule color0 setState [$this colormap getState]
 						
 					#$this fire
