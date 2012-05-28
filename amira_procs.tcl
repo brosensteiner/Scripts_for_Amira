@@ -46,6 +46,20 @@ $this proc switchNumberSigns { args } {
 	return $list
 }
 
+#proc which translates a point in 3D space. argument point has to be in cartesian coordinates
+$this proc translateTo { point pointToTranslateTo } {
+
+	set point [split $point " "]
+	set pointToTranslateTo [split $pointToTranslateTo " "]
+
+	set transformList [list]
+	for { set i 0 } { $i < [llength $point]  } { incr i } {
+		lappend transformList [expr [lindex $point $i] - [lindex $pointToTranslateTo $i]]
+		echo "die rechunung: [expr [lindex $point $i] - [lindex $pointToTranslateTo $i]]"
+	}
+	return $transformList
+}
+
 # procedure for extracting a bunch of values from an amira spreadsheet object generated from the ShapeAnalysis modul. :\
   return value is an array which holds the values ("array set varName spreadExtractArray arg" catches the array returned \
   by extractFromSpreadsheet again in an array). This proc works only in conjunctions with the ShapeAnalysis module \

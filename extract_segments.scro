@@ -4,6 +4,7 @@ source "[file dirname [info script]]/amira_procs.tcl";#relative path to amira_pr
 
 # Register the packages
 package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlevel 8.4.19)
+package require math::bigfloat;# when loading this package amira searches an annoying amount of time to find the package. math::bigfloat is also only compatible with tcl 8.4 with a conversion hack. TODO: maybe writing the needed math procs myself (need only rad2deg)
 
 set moduleName [string map {"\.scro" ""} $this];# the name of the module generated from the script filename
 set theAuthor "Bernhard Rosensteiner"
@@ -112,7 +113,7 @@ $this proc constructor {} {
 	$this resampleOptions setLabel "Resample options"
 	
 	
-	# when savedLabes is not defined it will with this if statement (will only be the case at first loading $this, \
+	# when savedLabes is not defined it will with this if statement (will only be the case at first loading of $this, \
 	  afterwards it is always defined -> see proc savePreparation):
 	if { ![$this hasVar savedLabels] } {# hasVar is undocumented in Amira documentation, but indispensable ...
 		 $this setVar savedLabels 1
@@ -432,26 +433,58 @@ $this proc compute {} {
 						if { [$this $theLabSetFromLabSetList getValue $i] == 1 && [lindex $labOKFlagList $labfieldCount] == 1} {
 							
 							# the shape analysis:
-							array set valFromSprdsht [$this makeShapeAnalysis $labelfield $shapeAnalysisModul 1];
+							array set valFromSprdsht [$this makeShapeAnalysis $labelfield $shapeAnalysisModul $voxelOptionMassIsChecked];
 							
 							set theItemToTransform [lindex $theArithmeticExtractedVoxelList $xCount];# get the needed item from list with xCount
 
 							echo "[$theItemToTransform getTransform -d]"
-							#eval "$theItemToTransform setRotation -center $valFromSprdsht($i,c) $valFromSprdsht($i,evector2) 90"
-							set alpha [expr atan2([lindex $valFromSprdsht($i,evector1) 1], [lindex $valFromSprdsht($i,evector1) 0])]
-							set beta [expr atan2([lindex $valFromSprdsht($i,evector1) 2], [lindex $valFromSprdsht($i,evector1) 0])]
-							set gamma [expr atan2([lindex $valFromSprdsht($i,evector1) 0], [lindex $valFromSprdsht($i,evector1) 0])]
-							echo "alpha: $alpha"
-							echo "beta: $beta"
-							echo "gamma: $gamma"
 							
-							eval "$theItemToTransform setRotation -center $valFromSprdsht($i,c)  0 0 1 [eval $this switchNumberSigns $alpha]"
-							#eval "$theItemToTransform setRotation -center $valFromSprdsht($i,c)  1 0 0 [eval $this switchNumberSigns $beta]"
-							eval "$theItemToTransform setTranslation [eval $this switchNumberSigns $valFromSprdsht($i,c)]";#translates center of object in 3D space to origin (i.e. 0, 0, 0)
+							#eigenvector 1:
+							set alpha1 [expr atan2([lindex $valFromSprdsht($i,evector1) 1], [lindex $valFromSprdsht($i,evector1) 0])]
+							set beta1 [expr atan2([lindex $valFromSprdsht($i,evector1) 2], [lindex $valFromSprdsht($i,evector1) 0])]
+							set gamma1 [expr atan2([lindex $valFromSprdsht($i,evector1) 2], [lindex $valFromSprdsht($i,evector1) 1])]
+														
+							set alpha1InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha1]]]]
+							set beta1InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta1]]]]
+							set gamma1InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $gamma1]]]]
+							
+							#eigenvector 2:
+							set alpha2 [expr atan2([lindex $valFromSprdsht($i,evector2) 2], [lindex $valFromSprdsht($i,evector2) 0])]
+							set beta2 [expr atan2([lindex $valFromSprdsht($i,evector2) 2], [lindex $valFromSprdsht($i,evector2) 0])]
+							set gamma2 [expr atan2([lindex $valFromSprdsht($i,evector2) 1], [lindex $valFromSprdsht($i,evector2) 2])]
+														
+							set alpha2InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha2]]]]
+							set beta2InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta2]]]]
+							set gamma2InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $gamma2]]]]
+							
+							#eigenvector 3:
+							set alpha3 [expr atan2([lindex $valFromSprdsht($i,evector3) 0], [lindex $valFromSprdsht($i,evector3) 0])]
+							set beta3 [expr atan2([lindex $valFromSprdsht($i,evector3) 2], [lindex $valFromSprdsht($i,evector3) 0])]
+							set gamma3 [expr atan2([lindex $valFromSprdsht($i,evector3) 2], [lindex $valFromSprdsht($i,evector3) 0])]
+														
+							set alpha3InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha3]]]]
+							set beta3InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta3]]]]
+							set gamma3InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $gamma3]]]]
+							
+							 
+							#eval "$theItemToTransform setRotation -center $valFromSprdsht($i,c)  1 0 0 [eval $this switchNumberSigns $beta1]"
+							
+							set resetToWorldCoord [eval $this switchNumberSigns $valFromSprdsht($i,c)]
+							eval "$theItemToTransform setTranslation $resetToWorldCoord";#translates center of object in 3D space to world origin (i.e. 0, 0, 0)
+							
+							#set dupltheItemToTransform [$theItemToTransform duplicate]
+							
+							eval "$theItemToTransform rotate -wz [expr -$alpha1InDeg]"
+							eval "$theItemToTransform rotate -wy [expr -$beta1InDeg]"
+							eval "$theItemToTransform rotate -wx [expr -$beta2InDeg]"
+
 							echo "theROTATION: [$theItemToTransform getRotation]"
-							echo "EIGENVECTOR1: $valFromSprdsht($i,evector1)"
-							echo "EIGENVECTOR2: $valFromSprdsht($i,evector2)"
-							echo "EIGENVECTOR3: $valFromSprdsht($i,evector3)"
+							echo "EIGENVECTOR1 alpha1: $alpha1InDeg"
+							echo "EIGENVVECTOR2 beta1: $beta1InDeg"
+							echo "EIGENVECTOR3 gamma1: $gamma1InDeg"
+							echo "EIGENVECTOR1 alpha2: $alpha2InDeg"
+							echo "EIGENVVECTOR2 beta2: $beta2InDeg"
+							echo "EIGENVECTOR3 gamma2: $gamma2InDeg"
 							
 							
 							
