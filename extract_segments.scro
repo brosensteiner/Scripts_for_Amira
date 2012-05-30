@@ -439,32 +439,47 @@ $this proc compute {} {
 
 							echo "[$theItemToTransform getTransform -d]"
 							
-							#eigenvector 1:
-							set alpha1 [expr atan2([lindex $valFromSprdsht($i,evector1) 1], [lindex $valFromSprdsht($i,evector1) 0])]
-							set beta1 [expr atan2([lindex $valFromSprdsht($i,evector1) 2], [lindex $valFromSprdsht($i,evector1) 0])]
-							set gamma1 [expr atan2([lindex $valFromSprdsht($i,evector1) 2], [lindex $valFromSprdsht($i,evector1) 1])]
-														
-							set alpha1InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha1]]]]
-							set beta1InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta1]]]]
-							set gamma1InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $gamma1]]]]
 							
-							#eigenvector 2:
-							set alpha2 [expr atan2([lindex $valFromSprdsht($i,evector2) 2], [lindex $valFromSprdsht($i,evector2) 0])]
-							set beta2 [expr atan2([lindex $valFromSprdsht($i,evector2) 2], [lindex $valFromSprdsht($i,evector2) 0])]
-							set gamma2 [expr atan2([lindex $valFromSprdsht($i,evector2) 1], [lindex $valFromSprdsht($i,evector2) 2])]
-														
-							set alpha2InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha2]]]]
-							set beta2InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta2]]]]
-							set gamma2InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $gamma2]]]]
+							#all vector components (easier to read instead of getting them every time from array with lindex ...):
+							set evec1x [lindex $valFromSprdsht($i,evector1) 0]
+							set evec1y [lindex $valFromSprdsht($i,evector1) 1]
+							set evec1z [lindex $valFromSprdsht($i,evector1) 2]
+							set evec2x [lindex $valFromSprdsht($i,evector2) 0]
+							set evec2y [lindex $valFromSprdsht($i,evector2) 1]
+							set evec2z [lindex $valFromSprdsht($i,evector2) 2]
+							set evec3x [lindex $valFromSprdsht($i,evector3) 0]
+							set evec3y [lindex $valFromSprdsht($i,evector3) 1]
+							set evec3z [lindex $valFromSprdsht($i,evector3) 2]
 							
-							#eigenvector 3:
-							set alpha3 [expr atan2([lindex $valFromSprdsht($i,evector3) 0], [lindex $valFromSprdsht($i,evector3) 0])]
-							set beta3 [expr atan2([lindex $valFromSprdsht($i,evector3) 2], [lindex $valFromSprdsht($i,evector3) 0])]
-							set gamma3 [expr atan2([lindex $valFromSprdsht($i,evector3) 2], [lindex $valFromSprdsht($i,evector3) 0])]
-														
-							set alpha3InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha3]]]]
-							set beta3InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta3]]]]
-							set gamma3InDeg [expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $gamma3]]]]
+							
+							#making shure i have a right-handed coordinate system for the eigenvectors, so that the consecutive rotations don´t get messed up maybe:
+							set inxyPlaneEvec1	[expr sqrt( pow($evec1x, 2) + pow($evec1y, 2) )]
+							set inxyzPlaneEvec1	[expr sqrt( pow($xyPlane, 2) + pow($evec1z, 2) )]
+							set inxyPlaneEvec2	[expr sqrt( pow($evec2x, 2) + pow($evec2y, 2) )]
+							set inxyzPlaneEvec2	[expr sqrt( pow($xyPlane, 2) + pow($evec2z, 2) )]
+							set inxyPlaneEvec3	[expr sqrt( pow($evec3x, 2) + pow($evec3y, 2) )]
+							set inxyzPlaneEvec3	[expr sqrt( pow($xyPlane, 2) + pow($evec3z, 2) )]
+							
+							set xyAngle [expr atan2($evec3x, $evec3y)]
+							
+							
+							#angles eigenvector 1:
+							set alpha1		[expr atan2($evec1y, $evec1x)]
+							set beta1		[expr atan2($evec1z, sqrt( pow($evec1x, 2) + pow($evec1y, 2) ) )]
+							set alpha1InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha1]]]]
+							set beta1InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta1]]]]
+							
+							#angles eigenvector 2:
+							set alpha2		[expr atan2($evec2y, $evec2x)]
+							set beta2		[expr atan2($evec2z, sqrt( pow($evec2x, 2) + pow($evec2y, 2) ) )]
+							set alpha2InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha2]]]]
+							set beta2InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta2]]]]
+							
+							#angles eigenvector 3:
+							set alpha3		[expr atan2($evec3y, $evec3x)]
+							set beta3		[expr atan2($evec3z, sqrt( pow($evec3x, 2) + pow($evec3y, 2) ) )]
+							set alpha3InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha3]]]]
+							set beta3InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta3]]]]
 							
 							 
 							#eval "$theItemToTransform setRotation -center $valFromSprdsht($i,c)  1 0 0 [eval $this switchNumberSigns $beta1]"
@@ -472,19 +487,24 @@ $this proc compute {} {
 							set resetToWorldCoord [eval $this switchNumberSigns $valFromSprdsht($i,c)]
 							eval "$theItemToTransform setTranslation $resetToWorldCoord";#translates center of object in 3D space to world origin (i.e. 0, 0, 0)
 							
-							#set dupltheItemToTransform [$theItemToTransform duplicate]
+#							set dupltheItemToTransform [$theItemToTransform duplicate]
 							
-							eval "$theItemToTransform rotate -wz [expr -$alpha1InDeg]"
-							eval "$theItemToTransform rotate -wy [expr -$beta1InDeg]"
+							eval "$theItemToTransform rotate -wz [expr -$alpha3InDeg]"
+							eval "$theItemToTransform rotate -wy [expr $beta3InDeg]"
 							eval "$theItemToTransform rotate -wx [expr -$beta2InDeg]"
+							
+#							eval "$theItemToTransform rotate -wz [expr -$alpha3InDeg]"
+#							eval "$theItemToTransform rotate -wy [expr $beta3InDeg]"
+#							eval "$theItemToTransform rotate -wx [expr -$beta2InDeg]"
+							
 
 							echo "theROTATION: [$theItemToTransform getRotation]"
 							echo "EIGENVECTOR1 alpha1: $alpha1InDeg"
 							echo "EIGENVVECTOR2 beta1: $beta1InDeg"
-							echo "EIGENVECTOR3 gamma1: $gamma1InDeg"
-							echo "EIGENVECTOR1 alpha2: $alpha2InDeg"
+							echo "EIGENVECTOR2 alpha2: $alpha2InDeg"
 							echo "EIGENVVECTOR2 beta2: $beta2InDeg"
-							echo "EIGENVECTOR3 gamma2: $gamma2InDeg"
+							echo "EIGENVECTOR3 alpha3: $alpha3InDeg"
+							echo "EIGENVVECTOR3 beta3: $beta3InDeg"
 							
 							
 							

@@ -115,6 +115,13 @@ $this proc extractFromSpreadsheet { spreadObj } {
 																			[$spreadObj getValue 19 $i]\
 																			]
 	}
+	#put moments of inertia ixx, Iyy, Izz in array:
+	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
+		set spreadExtractArray([$spreadObj getValue 0 $i],moinertia) [list	[$spreadObj getValue 28 $i]\
+																			[$spreadObj getValue 29 $i]\
+																			[$spreadObj getValue 30 $i]\
+																			]
+	}
 	return [array get spreadExtractArray]
 }
 
@@ -131,7 +138,8 @@ $this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnal
 	
 	set theResultFromShapeAnalysis [$shapeAnalysisModul getResult]
 	array set extrValFromSprdsht [$this extractFromSpreadsheet $theResultFromShapeAnalysis]
-	remove $theResultFromShapeAnalysis
+	$theResultFromShapeAnalysis master disconnect 
+	#remove $theResultFromShapeAnalysis
 	return [array get extrValFromSprdsht]
 	
 }
@@ -264,16 +272,16 @@ $this proc checkModuleStateAndSetVariables {} {
 	}
 	
 	# printing $this info (only for debugging):
-	$this say "\nuserLabListSelState: [array get userLabListSelState]"
-	$this say "lastLabSetArray: [array get lastLabSetArray]"
-	$this say "allConnectedLabFields: $allConnectedLabFields"
-	$this say "allEmptyConPorts: $allEmptyConPorts"
-	$this say "emptyConPorts: $emptyConPorts"
-	$this say "labOKFlagList: $labOKFlagList"
-	$this say "labCountList: $labCountList"
-	$this say "labSetList: $labSetList"
-	$this say "userResultSelState: $userResultSelState"
-	$this say "userSaveState: $userSaveState\n"
+#	$this say "\nuserLabListSelState: [array get userLabListSelState]"
+#	$this say "lastLabSetArray: [array get lastLabSetArray]"
+#	$this say "allConnectedLabFields: $allConnectedLabFields"
+#	$this say "allEmptyConPorts: $allEmptyConPorts"
+#	$this say "emptyConPorts: $emptyConPorts"
+#	$this say "labOKFlagList: $labOKFlagList"
+#	$this say "labCountList: $labCountList"
+#	$this say "labSetList: $labSetList"
+#	$this say "userResultSelState: $userResultSelState"
+#	$this say "userSaveState: $userSaveState\n"
 	
 }
 
