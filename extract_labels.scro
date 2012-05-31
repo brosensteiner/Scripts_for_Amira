@@ -4,7 +4,13 @@ source "[file dirname [info script]]/amira_procs.tcl";#relative path to amira_pr
 
 # Register the packages
 package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlevel 8.4.19)
-package require math::bigfloat;# when loading this package amira searches an annoying amount of time to find the package. math::bigfloat is also only compatible with tcl 8.4 with a conversion hack. TODO: maybe writing the needed math procs myself (need only rad2deg)
+# when loading this package amira searches an annoying amount of time when first loaded to find the package. math::bigfloat is also only compatible with tcl 8.4 with a conversion hack.
+package require math::bigfloat;
+package require math::linearalgebra;
+
+namespace import -force \
+						::math::linearalgebra::mkVector \
+						::math::linearalgebra::crossproduct
 
 set moduleName [string map {"\.scro" ""} $this];# the name of the module generated from the script filename
 set theAuthor "Bernhard Rosensteiner"
@@ -41,7 +47,7 @@ set arythmeticModul XxXArithmetic_${moduleName}
 set shapeAnalysisModul XxXShapeAnalysis_${moduleName}
 
 #
-# ********** the amira script functions **********
+# **** the amira script object procedures ****
 #
 $this proc constructor {} {
 
@@ -451,17 +457,19 @@ $this proc compute {} {
 							set evec3y [lindex $valFromSprdsht($i,evector3) 1]
 							set evec3z [lindex $valFromSprdsht($i,evector3) 2]
 							
+							set crPrd23 [crossproduct $valFromSprdsht($i,evector2) $valFromSprdsht($i,evector3)];#cross product of eigenvector2 and 3 (see next if statement for explanation)
 							
-							#making shure i have a right-handed coordinate system for the eigenvectors, so that the consecutive rotations don´t get messed up maybe:
-							set inxyPlaneEvec1	[expr sqrt( pow($evec1x, 2) + pow($evec1y, 2) )]
-							set inxyzPlaneEvec1	[expr sqrt( pow($xyPlane, 2) + pow($evec1z, 2) )]
-							set inxyPlaneEvec2	[expr sqrt( pow($evec2x, 2) + pow($evec2y, 2) )]
-							set inxyzPlaneEvec2	[expr sqrt( pow($xyPlane, 2) + pow($evec2z, 2) )]
-							set inxyPlaneEvec3	[expr sqrt( pow($evec3x, 2) + pow($evec3y, 2) )]
-							set inxyzPlaneEvec3	[expr sqrt( pow($xyPlane, 2) + pow($evec3z, 2) )]
-							
-							set xyAngle [expr atan2($evec3x, $evec3y)]
-							
+							# this if checks if the coordinate system of the shape eigenvectors is right-handed. When left-handed then the system gets mirrored (evec1-evec2 plane) \
+							  this check is neccesary, because the eigenvector coordinate system can be right-handed or left-handed \
+							  and when not corrected for this the rotations at the origin can produce different results (flipped 180 degrees on a axis).
+							if { 
+								 [lindex $crPrd23 0] < 0 && $evec1x >= 0 || \
+								 [lindex $crPrd23 0] > 0 && $evec1x < 0 \
+							   } then {
+								 set evec3x [expr -$evec3x]
+								 set evec3y [expr -$evec3y]
+								 set evec3z [expr -$evec3z]
+							}
 							
 							#angles eigenvector 1:
 							set alpha1		[expr atan2($evec1y, $evec1x)]
@@ -480,10 +488,7 @@ $this proc compute {} {
 							set beta3		[expr atan2($evec3z, sqrt( pow($evec3x, 2) + pow($evec3y, 2) ) )]
 							set alpha3InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha3]]]]
 							set beta3InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta3]]]]
-							
-							 
-							#eval "$theItemToTransform setRotation -center $valFromSprdsht($i,c)  1 0 0 [eval $this switchNumberSigns $beta1]"
-							
+														
 							set resetToWorldCoord [eval $this switchNumberSigns $valFromSprdsht($i,c)]
 							eval "$theItemToTransform setTranslation $resetToWorldCoord";#translates center of object in 3D space to world origin (i.e. 0, 0, 0)
 							
@@ -493,23 +498,19 @@ $this proc compute {} {
 							eval "$theItemToTransform rotate -wy [expr $beta3InDeg]"
 							eval "$theItemToTransform rotate -wx [expr -$beta2InDeg]"
 							
-#							eval "$theItemToTransform rotate -wz [expr -$alpha3InDeg]"
-#							eval "$theItemToTransform rotate -wy [expr $beta3InDeg]"
-#							eval "$theItemToTransform rotate -wx [expr -$beta2InDeg]"
 							
 
-							echo "theROTATION: [$theItemToTransform getRotation]"
-							echo "EIGENVECTOR1 alpha1: $alpha1InDeg"
-							echo "EIGENVVECTOR2 beta1: $beta1InDeg"
-							echo "EIGENVECTOR2 alpha2: $alpha2InDeg"
-							echo "EIGENVVECTOR2 beta2: $beta2InDeg"
-							echo "EIGENVECTOR3 alpha3: $alpha3InDeg"
-							echo "EIGENVVECTOR3 beta3: $beta3InDeg"
-							
+#							echo "theROTATION: [$theItemToTransform getRotation]"
+#							echo "EIGENVECTOR1 alpha1: $alpha1InDeg"
+#							echo "EIGENVVECTOR2 beta1: $beta1InDeg"
+#							echo "EIGENVECTOR2 alpha2: $alpha2InDeg"
+#							echo "EIGENVVECTOR2 beta2: $beta2InDeg"
+#							echo "EIGENVECTOR3 alpha3: $alpha3InDeg"
+#							echo "EIGENVVECTOR3 beta3: $beta3InDeg"
 							
 							
 							#eval "$theItemToTransform rotate -wx 90"
-							echo "[$theItemToTransform getTransform -d]"
+#							echo "[$theItemToTransform getTransform -d]"
 							$theItemToTransform fire 
 							incr xCount
 						}
