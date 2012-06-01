@@ -101,17 +101,30 @@ $this proc constructor {} {
 	$this options setLabel 0 "add border"
 	$this options setLabel 1 "compactify"
 	
-	# recreates the options port from Arithmetic
+	# creates voxel options:
 	$this newPortSeparator voxelSeparator
 	$this newPortToggleList voxelOptions 3
 	$this voxelOptions setLabel "Voxel options"
 	$this voxelOptions setLabel 0 "align principal axis"
 	$this voxelOptions setLabel 1 "use mass"
 	$this voxelOptions setLabel 2 "connect results to Volren"
-	
 	#creates colormap port for the volren modules when "connect results to Volren module" is checked \
-	 this port will allow remote controlling of all volren modules in the pool which $this created
+	 this port will allow remote controlling of all volren modules in the pool which $this created and connected to a extracted voxel field
 	$this newPortColormap colormap
+	#creates options for the alinging of the principal axes:
+	$this newPortRadioBox axis1 3
+	$this axis1 setLabel 0 "x"
+	$this axis1 setLabel 1 "y"
+	$this axis1 setLabel 2 "z"
+	$this newPortRadioBox axis2 3
+	$this axis2 setLabel 0 "x"
+	$this axis2 setLabel 1 "y"
+	$this axis2 setLabel 2 "z"
+	$this axis2 setValue 1;#initial value should be on y
+	$this newPortButtonList rotation 3
+	$this rotation setLabel 0 "Rot1"
+	$this rotation setLabel 1 "Rot2"
+	$this rotation setLabel 2 "Rot3"
 	
 	# creates resample z options
 	$this newPortSeparator resampleSeparator
@@ -193,13 +206,16 @@ $this proc compute {} {
 	set voxelOptionMassIsChecked [$this voxelOptions getValue 1]
 	set voxelOptionConnectVolrenIsChecked [$this voxelOptions getValue 2]
 	
+	set voxelOptionAxis1WhichIsChecked [$this axis1 getValue]
+	set voxelOptionAxis2WhichIsChecked [$this axis2 getValue]
+	
 	$this checkModuleStateAndSetVariables;
 	
-	if { [$this getVar computeCounter] > 0 } { $this conPortLogic };# procedure conPortLogic will be executed after the first compute run
+	if { [$this getVar computeCounter] > 0 } then { $this conPortLogic };# procedure conPortLogic will be executed after the first compute run
 	
 	
 	# the following if/elsif statements show/hide most of the gui when user checks the toggles or connects modules
-	if { $polygonSurfaceToggleIsChecked } {# "polygon surface" is checked
+	if { $polygonSurfaceToggleIsChecked } then {# "polygon surface" is checked
 			
 		$this smoothingSeparator show
 		$this smoothing show
@@ -212,23 +228,64 @@ $this proc compute {} {
 		$this SmoothingSliderPort hide
 		$this options hide
 	}
-	if { $voxelDataToggleIsChecked } {# "voxel data" is checked
+	if { $voxelDataToggleIsChecked } then {# "voxel data" is checked
 			
 		$this voxelSeparator show
 		$this voxelOptions show
+		if { $theArithmeticExtractedVoxelList eq [list] } then {
+			$this rotation setSensitivity 0 0
+			$this rotation setSensitivity 1 0
+			$this rotation setSensitivity 2 0
+		}
+		
 	} else {# "voxel data" is not checked
 		
 		$this voxelSeparator hide
 		$this voxelOptions hide
 	}
-	if { $voxelOptionAlignPrincipalAxisIsChecked } {
+	if { $voxelOptionAlignPrincipalAxisIsChecked && $voxelDataToggleIsChecked } then {
 	
-		 	$this voxelOptions setSensitivity 1 1
-		 } else {
-		 
-		 	$this voxelOptions setSensitivity 1 0
+		$this voxelOptions setSensitivity 1 1
+		$this voxelOptions setSensitivity 2 1
+		 	
+		$this axis1 show 
+		$this axis2 show 
+		$this rotation show
+		
+		# logic for the axis selection:
+		set axis1State [$this axis1 getState]
+		if { [regexp {value\s0} $axis1State] } then {
+		
+			 $this axis2 setSensitivity 0 0
+			 $this axis2 setSensitivity 1 1
+			 $this axis2 setSensitivity 2 1
+			 if { [$this axis1 isNew] } then { $this axis2 setValue 1 }
+			 
+		} elseif { [regexp {value\s1}  $axis1State]} {
+		
+			 $this axis2 setSensitivity 0 1
+			 $this axis2 setSensitivity 1 0
+			 $this axis2 setSensitivity 2 1
+			 if { [$this axis1 isNew] } then { $this axis2 setValue 2 }
+			 
+		} elseif { [regexp {value\s2} $axis1State]} then {
+		
+			 $this axis2 setSensitivity 0 1
+			 $this axis2 setSensitivity 1 1
+			 $this axis2 setSensitivity 2 0
+			 if { [$this axis1 isNew] } then { $this axis2 setValue 0 }
+		}
+		
+	} else {
+		
+		$this voxelOptions setSensitivity 1 0
+		$this voxelOptions setSensitivity 2 0
+		 	
+		$this axis1 hide 
+		$this axis2 hide 
+		$this rotation hide
 	}
-	if { $resampleZToggleIsChecked } {# "resample z" is checked
+	if { $resampleZToggleIsChecked } then {# "resample z" is checked
 			
 		$this resampleSeparator show
 		$this resampleOptions show
@@ -237,7 +294,7 @@ $this proc compute {} {
 		$this resampleSeparator hide
 		$this resampleOptions hide
 	}
-	if { $voxelOptionConnectVolrenIsChecked } then { $this colormap show } else { $this colormap hide }
+	if { $voxelOptionAlignPrincipalAxisIsChecked && $voxelOptionConnectVolrenIsChecked } then { $this colormap show } else { $this colormap hide }
 	
 	# the next "if" is neccesary because i don´t get the interactive mapping of ports in amira to work (at least with colormap ports),\
 	  so the eventually created volren modules get updated this way when the colormap port of $this will be modified by user:
@@ -444,7 +501,7 @@ $this proc compute {} {
 							set theItemToTransform [lindex $theArithmeticExtractedVoxelList $xCount];# get the needed item from list with xCount
 
 							echo "[$theItemToTransform getTransform -d]"
-							
+												
 							
 							#all vector components (easier to read instead of getting them every time from array with lindex ...):
 							set evec1x [lindex $valFromSprdsht($i,evector1) 0]
@@ -453,34 +510,30 @@ $this proc compute {} {
 							set evec2x [lindex $valFromSprdsht($i,evector2) 0]
 							set evec2y [lindex $valFromSprdsht($i,evector2) 1]
 							set evec2z [lindex $valFromSprdsht($i,evector2) 2]
+							# the next if checks if the coordinate system of the shape eigenvectors is right-handed. When left-handed then the system gets mirrored (evec1-evec2 plane) \
+							  this check is neccesary, because the eigenvector coordinate system can be right-handed or left-handed \
+							  and when not corrected for this the rotations at the origin can produce different results (consecutive rotations have different outcomes for different initial states for asymmetrical objects).
+							set crPrd23 [crossproduct $valFromSprdsht($i,evector2) $valFromSprdsht($i,evector3)];#cross product of eigenvector 2 and 3
+							if { 
+								 [lindex $crPrd23 0] < 0 && $evec1x >= 0 || \
+								 [lindex $crPrd23 0] > 0 && $evec1x < 0 \
+							   } then { set valFromSprdsht($i,evector3) [eval $this switchNumberSigns $valFromSprdsht($i,evector3)] }
+							   
 							set evec3x [lindex $valFromSprdsht($i,evector3) 0]
 							set evec3y [lindex $valFromSprdsht($i,evector3) 1]
 							set evec3z [lindex $valFromSprdsht($i,evector3) 2]
 							
-							set crPrd23 [crossproduct $valFromSprdsht($i,evector2) $valFromSprdsht($i,evector3)];#cross product of eigenvector2 and 3 (see next if statement for explanation)
-							
-							# this if checks if the coordinate system of the shape eigenvectors is right-handed. When left-handed then the system gets mirrored (evec1-evec2 plane) \
-							  this check is neccesary, because the eigenvector coordinate system can be right-handed or left-handed \
-							  and when not corrected for this the rotations at the origin can produce different results (flipped 180 degrees on a axis).
-							if { 
-								 [lindex $crPrd23 0] < 0 && $evec1x >= 0 || \
-								 [lindex $crPrd23 0] > 0 && $evec1x < 0 \
-							   } then {
-								 set evec3x [expr -$evec3x]
-								 set evec3y [expr -$evec3y]
-								 set evec3z [expr -$evec3z]
-							}
 							
 							#angles eigenvector 1:
-							set alpha1		[expr atan2($evec1y, $evec1x)]
-							set beta1		[expr atan2($evec1z, sqrt( pow($evec1x, 2) + pow($evec1y, 2) ) )]
-							set alpha1InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha1]]]]
-							set beta1InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta1]]]]
+#							set alpha1		[expr atan2($evec1y, $evec1x)]
+#							set beta1		[expr atan2($evec1z, sqrt( pow($evec1x, 2) + pow($evec1y, 2) ) )]
+#							set alpha1InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha1]]]]
+#							set beta1InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta1]]]]
 							
 							#angles eigenvector 2:
-							set alpha2		[expr atan2($evec2y, $evec2x)]
+#							set alpha2		[expr atan2($evec2y, $evec2x)]
 							set beta2		[expr atan2($evec2z, sqrt( pow($evec2x, 2) + pow($evec2y, 2) ) )]
-							set alpha2InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha2]]]]
+#							set alpha2InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha2]]]]
 							set beta2InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta2]]]]
 							
 							#angles eigenvector 3:
@@ -490,13 +543,51 @@ $this proc compute {} {
 							set beta3InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta3]]]]
 														
 							set resetToWorldCoord [eval $this switchNumberSigns $valFromSprdsht($i,c)]
-							eval "$theItemToTransform setTranslation $resetToWorldCoord";#translates center of object in 3D space to world origin (i.e. 0, 0, 0)
-							
-#							set dupltheItemToTransform [$theItemToTransform duplicate]
-							
+							eval "$theItemToTransform setTranslation $resetToWorldCoord";#translates center of object in 3D space to world´s origin (i.e. 0, 0, 0)
+														
+							#the rotations for aligning the eigenvectors to the world x, y and z axis:
 							eval "$theItemToTransform rotate -wz [expr -$alpha3InDeg]"
 							eval "$theItemToTransform rotate -wy [expr $beta3InDeg]"
 							eval "$theItemToTransform rotate -wx [expr -$beta2InDeg]"
+							# the orientation of the eigenvectors after aliging (is needed for the Rot1, Rot2 and Rot3 commands to operate on) \
+							  left-handed or right-handed is indifferent because only the axis for rotation is needed (e.g. (0,0,0)->(0,0,1))
+							set virtualEvec1 [list 0 0 1]
+							set virtualEvec2 [list 0 1 0]
+							set virtualEvec3 [list 1 0 0]
+							
+							#the rotations for aligning the eigenvectors to the user specified axes (axes specified are for the biggest and second biggest moment of inertia - works like in Amira´s AlignPrincipalAxes module)
+							if { $voxelOptionAxis1WhichIsChecked == 0 && $voxelOptionAxis2WhichIsChecked == 2 } then {
+								eval "$theItemToTransform rotate -wx 90"
+								set virtualEvec1 [list 0 1 0]
+								set virtualEvec2 [list 0 0 1]
+								set virtualEvec3 [list 1 0 0]
+							}
+							if { $voxelOptionAxis1WhichIsChecked == 1 && $voxelOptionAxis2WhichIsChecked == 0 } then {
+								eval "$theItemToTransform rotate -wz 90"
+								set virtualEvec1 [list 0 0 1]
+								set virtualEvec2 [list 1 0 0]
+								set virtualEvec3 [list 0 1 0]
+							}
+							if { $voxelOptionAxis1WhichIsChecked == 1 && $voxelOptionAxis2WhichIsChecked == 2 } then {
+								eval "$theItemToTransform rotate -wy 90"
+								eval "$theItemToTransform rotate -wx 90"
+								set virtualEvec1 [list 1 0 0]
+								set virtualEvec2 [list 0 0 1]
+								set virtualEvec3 [list 0 1 0]
+							}
+							if { $voxelOptionAxis1WhichIsChecked == 2 && $voxelOptionAxis2WhichIsChecked == 0 } then {
+								eval "$theItemToTransform rotate -wy 90"
+								eval "$theItemToTransform rotate -wz 90"
+								set virtualEvec1 [list 0 1 0]
+								set virtualEvec2 [list 1 0 0]
+								set virtualEvec3 [list 0 0 1]
+							}
+							if { $voxelOptionAxis1WhichIsChecked == 2 && $voxelOptionAxis2WhichIsChecked == 1 } then {
+								eval "$theItemToTransform rotate -wy 90"
+								set virtualEvec1 [list 1 0 0]
+								set virtualEvec2 [list 0 1 0]
+								set virtualEvec3 [list 0 0 1]
+							}
 							
 							
 
@@ -508,15 +599,22 @@ $this proc compute {} {
 #							echo "EIGENVECTOR3 alpha3: $alpha3InDeg"
 #							echo "EIGENVVECTOR3 beta3: $beta3InDeg"
 							
-							
-							#eval "$theItemToTransform rotate -wx 90"
-#							echo "[$theItemToTransform getTransform -d]"
 							$theItemToTransform fire 
 							incr xCount
 						}
 					}
 				}
 				incr labfieldCount
+				
+				if { $theArithmeticExtractedVoxelList ne [list] } then {#make the rotation buttons sensitiv when voxels have been extracted
+					$this rotation setSensitivity 0 1
+					$this rotation setSensitivity 1 1
+					$this rotation setSensitivity 2 1
+				} else {
+					$this rotation setSensitivity 0 0
+					$this rotation setSensitivity 1 0
+					$this rotation setSensitivity 2 0
+				}
 			}
 			if { $voxelOptionConnectVolrenIsChecked } then {
 				

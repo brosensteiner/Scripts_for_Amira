@@ -60,6 +60,21 @@ $this proc translateTo { point pointToTranslateTo } {
 	return $transformList
 }
 
+#proc which rotates a given object on a given axis (axis is defined by two points in space with a list like: [list 0 1 0])
+$this proc rotateOnAxis { object { point1 {-center 0 0 0} } point2 degrees} {
+	eval $this $object setRotation $point1 $point2 $degrees
+}
+
+$this proc rotateEvec1_180 {} {
+	$this rotateOnAxis $virtualEvec1 180
+}
+$this proc rotateEvec2_180 {} {
+	$this rotateOnAxis $virtualEvec2 180
+}
+$this proc rotateEvec3_180 {} {
+	$this rotateOnAxis $virtualEvec3 180
+}
+
 # procedure for extracting a bunch of values from an amira spreadsheet object generated from the ShapeAnalysis modul. :\
   return value is an array which holds the values ("array set varName spreadExtractArray arg" catches the array returned \
   by extractFromSpreadsheet again in an array). This proc works only in conjunctions with the ShapeAnalysis module \
