@@ -21,6 +21,11 @@ $this setVar computeCounter 0
 
 set theExtractedSurfacesList [list];# keeps track of surfaces of the current run
 set theArithmeticExtractedVoxelList [list];# keeps track of all extracted surfaces from arithmetic runs
+#global axes specification for rotation objects around world center:
+set virtualEvec1 "-wx"
+set virtualEvec2 "-wy"
+set virtualEvec3 "-wz"
+set theMenuEntryInRotationPort "all";#default is "all" for rotation port
 set theResampleZExtractedSurfacesList [list];# keeps track of all extracted surfaces from resample z runs
 set theAdditionalDataList [list];#keeps track of additional data that $this produces (e.g. spreadsheet objects)
 set volRenList [list];#$this maybe creats Volren modules and they will be collected in this list
@@ -121,10 +126,12 @@ $this proc constructor {} {
 	$this axis2 setLabel 1 "y"
 	$this axis2 setLabel 2 "z"
 	$this axis2 setValue 1;#initial value should be on y
-	$this newPortButtonList rotation 3
+	#creates the rotation port options with a menu to select a extracted object or all objects:
+	$this newPortButtonMenu rotation 3 1
 	$this rotation setLabel 0 "Rot1"
 	$this rotation setLabel 1 "Rot2"
 	$this rotation setLabel 2 "Rot3"
+	$this rotation setOptLabel 0 "all"
 	
 	# creates resample z options
 	$this newPortSeparator resampleSeparator
@@ -160,15 +167,6 @@ $this proc destructor {} {
 	if { [lsearch [all] $arythmeticModul] != -1 }		{ remove $arythmeticModul }
 	if { [lsearch [all] $shapeAnalysisModul] != -1 }	{ remove $shapeAnalysisModul }
 	
-	# for safety, unset all global variables:
-	if { [info exists userLabListSelState] }			{ unset userLabListSelState }
-	if { [info exists allConnectedLabFields] }			{ unset allConnectedLabFields }
-	if { [info exists labCountList] }					{ unset labCountList }
-	if { [info exists labSetList] }						{ unset labSetList }
-	if { [info exists emptyConPorts] }					{ unset emptyConPorts }
-	if { [info exists allEmptyConPorts] }				{ unset allEmptyConPorts }
-	if { [info exists labOKFlagList] }					{ unset labOKFlagList }
-	
 	set hideNewModules 0
 	
 }
@@ -189,6 +187,7 @@ $this proc compute {} {
 	global moduleName theAuthor
 	global surfaceViewModul extractSurfaceModul surfaceGenModul shapeAnalysisModul
 	global theExtractedSurfacesList theCompleteExtractedList theArithmeticExtractedVoxelList theResampleZExtractedSurfacesList theAdditionalDataList volRenList
+	global virtualEvec1 virtualEvec2 virtualEvec3 theMenuEntryInRotationPort
 	global alignPrincipalAxesModul arythmeticModul
 	global userLabListSelState userSaveState
 
@@ -236,6 +235,8 @@ $this proc compute {} {
 			$this rotation setSensitivity 0 0
 			$this rotation setSensitivity 1 0
 			$this rotation setSensitivity 2 0
+			$this rotation setOptSensitivity 0 0
+			$this rotation setOptValueString "all"
 		}
 		
 	} else {# "voxel data" is not checked
@@ -549,46 +550,47 @@ $this proc compute {} {
 							eval "$theItemToTransform rotate -wz [expr -$alpha3InDeg]"
 							eval "$theItemToTransform rotate -wy [expr $beta3InDeg]"
 							eval "$theItemToTransform rotate -wx [expr -$beta2InDeg]"
-							# the orientation of the eigenvectors after aliging (is needed for the Rot1, Rot2 and Rot3 commands to operate on) \
-							  left-handed or right-handed is indifferent because only the axis for rotation is needed (e.g. (0,0,0)->(0,0,1))
-							set virtualEvec1 [list 0 0 1]
-							set virtualEvec2 [list 0 1 0]
-							set virtualEvec3 [list 1 0 0]
+							# the orientation of the eigenvectors after aliging (is needed for the Rot1, Rot2 and Rot3 commands to operate on)
+							set virtualEvec1 "-wz"
+							set virtualEvec2 "-wy"
+							set virtualEvec3 "-wx"
 							
-							#the rotations for aligning the eigenvectors to the user specified axes (axes specified are for the biggest and second biggest moment of inertia - works like in Amira´s AlignPrincipalAxes module)
+							# the rotations for aligning the eigenvectors to the user specified axes \
+							  (axes specified are for the biggest and second biggest moment of inertia - \
+							  works like in Amira´s AlignPrincipalAxes module) \
+							  to keep track of the axis of the eigenvectors they will also be changed with every rotation
 							if { $voxelOptionAxis1WhichIsChecked == 0 && $voxelOptionAxis2WhichIsChecked == 2 } then {
-								eval "$theItemToTransform rotate -wx 90"
-								set virtualEvec1 [list 0 1 0]
-								set virtualEvec2 [list 0 0 1]
-								set virtualEvec3 [list 1 0 0]
+								$theItemToTransform rotate -wx 90
+								set virtualEvec1 "-wy"
+								set virtualEvec2 "-wz"
+								set virtualEvec3 "-wx"
 							}
 							if { $voxelOptionAxis1WhichIsChecked == 1 && $voxelOptionAxis2WhichIsChecked == 0 } then {
-								eval "$theItemToTransform rotate -wz 90"
-								set virtualEvec1 [list 0 0 1]
-								set virtualEvec2 [list 1 0 0]
-								set virtualEvec3 [list 0 1 0]
+								$theItemToTransform rotate -wz 90
+								set virtualEvec1 "-wz"
+								set virtualEvec2 "-wx"
+								set virtualEvec3 "-wy"
 							}
 							if { $voxelOptionAxis1WhichIsChecked == 1 && $voxelOptionAxis2WhichIsChecked == 2 } then {
-								eval "$theItemToTransform rotate -wy 90"
-								eval "$theItemToTransform rotate -wx 90"
-								set virtualEvec1 [list 1 0 0]
-								set virtualEvec2 [list 0 0 1]
-								set virtualEvec3 [list 0 1 0]
+								$theItemToTransform rotate -wy 90
+								$theItemToTransform rotate -wx 90
+								set virtualEvec1 "-wx"
+								set virtualEvec2 "-wz"
+								set virtualEvec3 "-wy"
 							}
 							if { $voxelOptionAxis1WhichIsChecked == 2 && $voxelOptionAxis2WhichIsChecked == 0 } then {
-								eval "$theItemToTransform rotate -wy 90"
-								eval "$theItemToTransform rotate -wz 90"
-								set virtualEvec1 [list 0 1 0]
-								set virtualEvec2 [list 1 0 0]
-								set virtualEvec3 [list 0 0 1]
+								$theItemToTransform rotate -wy 90
+								$theItemToTransform rotate -wz 90
+								set virtualEvec1 "-wy"
+								set virtualEvec2 "-wx"
+								set virtualEvec3 "-wz"
 							}
 							if { $voxelOptionAxis1WhichIsChecked == 2 && $voxelOptionAxis2WhichIsChecked == 1 } then {
-								eval "$theItemToTransform rotate -wy 90"
-								set virtualEvec1 [list 1 0 0]
-								set virtualEvec2 [list 0 1 0]
-								set virtualEvec3 [list 0 0 1]
+								$theItemToTransform rotate -wy 90
+								set virtualEvec1 "-wx"
+								set virtualEvec2 "-wy"
+								set virtualEvec3 "-wz"
 							}
-							
 							
 
 #							echo "theROTATION: [$theItemToTransform getRotation]"
@@ -610,12 +612,28 @@ $this proc compute {} {
 					$this rotation setSensitivity 0 1
 					$this rotation setSensitivity 1 1
 					$this rotation setSensitivity 2 1
+					$this rotation setOptSensitivity 0 1
+
+					$this rotation setNumOptEntries [expr [llength $theArithmeticExtractedVoxelList] + 1];#sets the number of entries in the menu (+1 that "all" entry don´t get overwritten)
+					#label for each entry:
+					set count 1
+					foreach item $theArithmeticExtractedVoxelList {
+						$this rotation setOptLabel $count $item
+						incr count
+					}
+					unset count
+										
 				} else {
 					$this rotation setSensitivity 0 0
 					$this rotation setSensitivity 1 0
 					$this rotation setSensitivity 2 0
+					$this rotation setOptSensitivity 0 0
+					$this rotation setOptValueString "all" 
 				}
+								
 			}
+			
+			
 			if { $voxelOptionConnectVolrenIsChecked } then {
 				
 				foreach item $theArithmeticExtractedVoxelList {
@@ -627,7 +645,6 @@ $this proc compute {} {
 					#$aNewVolrenModule color0 connect $this colormap;#WHY IS IT NOT POSSIBLE TO DO THIS?, ACCORDING TO AMIRA DOCU IT SHOULD!!! -> always error
 					$aNewVolrenModule color0 setState [$this colormap getState]
 						
-					#$this fire
 					$aNewVolrenModule fire
 				}
 			}
@@ -682,7 +699,21 @@ $this proc compute {} {
 		workArea stopWorking
 					
 	}
+	
+	#assign the Rot buttons individual rotation procedures:
+	if { [$this rotation getOptValue] == 0 } then {#test if menu entry in rotation port is "all"
 
+		$this rotation setCmd 0 { $this rotateAll_180 theArithmeticExtractedVoxelList virtualEvec3 }
+		$this rotation setCmd 1 { $this rotateAll_180 theArithmeticExtractedVoxelList virtualEvec2 }
+		$this rotation setCmd 2 { $this rotateAll_180 theArithmeticExtractedVoxelList virtualEvec1 }
+	}
+	if { [$this rotation getOptValue] != 0 } {#test if menu entry in rotation port is other than "all"
+		
+		set theMenuEntryInRotationPort [lindex $theArithmeticExtractedVoxelList [expr [$this rotation getOptValue] - 1]];#set the text of the menu entry
+		$this rotation setCmd 0 { $this rotateObject_180 theMenuEntryInRotationPort virtualEvec3 }
+		$this rotation setCmd 1 { $this rotateObject_180 theMenuEntryInRotationPort virtualEvec2 }
+		$this rotation setCmd 2 { $this rotateObject_180 theMenuEntryInRotationPort virtualEvec1 }
+	}
 		
 	$this setVar computeCounter [expr [$this getVar computeCounter] + 1];# computeCounter will get +1 for every run from compute proc
 }

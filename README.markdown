@@ -11,7 +11,7 @@ Type the following in terminal:
     cd ~/***here comes your path for installation***
     git clone git://github.com/brosensteiner/Scripts_for_Amira.git
 ```
-## Installation
+## Documentation
 
 sorry, not ready in this early stage ... 
 
