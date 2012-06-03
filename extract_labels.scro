@@ -2,7 +2,7 @@
 
 source "[file dirname [info script]]/amira_procs.tcl";#relative path to amira_procs.tcl
 
-# Register the packages
+# some packages:
 package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlevel 8.4.19)
 # when loading this package amira searches an annoying amount of time when first loaded to find the package. math::bigfloat is also only compatible with tcl 8.4 with a conversion hack.
 package require math::bigfloat;
@@ -21,7 +21,7 @@ $this setVar computeCounter 0
 
 set theExtractedSurfacesList [list];# keeps track of surfaces of the current run
 set theArithmeticExtractedVoxelList [list];# keeps track of all extracted surfaces from arithmetic runs
-#global axes specification for rotation objects around world center:
+#global axes specification for rotating objects around world center (see rotation port implemenation):
 set virtualEvec1 "-wx"
 set virtualEvec2 "-wy"
 set virtualEvec3 "-wz"
@@ -67,7 +67,7 @@ $this proc constructor {} {
 	$this result setLabel 0 "overwrite"
 	$this result setLabel 1 "polygon surface"
 	$this result setLabel 2 "voxel data"
-	$this result setLabel 3 "resample z"
+	$this result setLabel 3 "resample"
 	
 	$this newPortFilename saveResults
 	$this saveResults setLabel "Save result"
@@ -133,12 +133,17 @@ $this proc constructor {} {
 	$this rotation setLabel 2 "Rot3"
 	$this rotation setOptLabel 0 "all"
 	
-	# creates resample z options
+	# creates resample options
 	$this newPortSeparator resampleSeparator
-	$this newPortToggleList resampleOptions 2
-	$this resampleOptions setLabel "Resample options"
-	
-	
+	$this newPortGeneric resampleOptions1
+	$this resampleOptions1 insertIntText 0 5
+	$this resampleOptions1 insertPushButton 1 "Auto Crop"
+	$this newPortButtonMenu resampleOptions2 1 1
+	$this resampleOptions2 setLabel 0 "Resample!"
+	$this resampleOptions2 setOptLabels 0 [list "Nearest Neighbor" "Standard" "Lanczos"]
+	$this resampleOptions2 setOptValueString "Standard";#default value
+	$this resampleOptions2 setNumOptEntries 3
+		
 	# when savedLabes is not defined it will with this if statement (will only be the case at first loading of $this, \
 	  afterwards it is always defined -> see proc savePreparation):
 	if { ![$this hasVar savedLabels] } {# hasVar is undocumented in Amira documentation, but indispensable ...
@@ -198,7 +203,7 @@ $this proc compute {} {
 	set overwriteToggleIsChecked [$this result getValue 0]
 	set polygonSurfaceToggleIsChecked [$this result getValue 1]
 	set voxelDataToggleIsChecked [$this result getValue 2]
-	set resampleZToggleIsChecked [$this result getValue 3]
+	set resampleToggleIsChecked [$this result getValue 3]
 	set resultSelectionState [$this result getState]
 	
 	set voxelOptionAlignPrincipalAxisIsChecked [$this voxelOptions getValue 0]
@@ -238,11 +243,14 @@ $this proc compute {} {
 			$this rotation setOptSensitivity 0 0
 			$this rotation setOptValueString "all"
 		}
+		$this result setSensitivity 3 1
 		
 	} else {# "voxel data" is not checked
 		
 		$this voxelSeparator hide
 		$this voxelOptions hide
+		$this result setSensitivity 3 0
+		$this result setValue 3 0; set resampleToggleIsChecked 0
 	}
 	if { $voxelOptionAlignPrincipalAxisIsChecked && $voxelDataToggleIsChecked } then {
 	
@@ -286,14 +294,16 @@ $this proc compute {} {
 		$this axis2 hide 
 		$this rotation hide
 	}
-	if { $resampleZToggleIsChecked } then {# "resample z" is checked
+	if { $resampleToggleIsChecked } then {# "resample z" is checked
 			
 		$this resampleSeparator show
-		$this resampleOptions show
+		$this resampleOptions1 show
+		$this resampleOptions2 show
 	} else {# "resample z" is not checked
 		
 		$this resampleSeparator hide
-		$this resampleOptions hide
+		$this resampleOptions1 hide
+		$this resampleOptions2 hide
 	}
 	if { $voxelOptionAlignPrincipalAxisIsChecked && $voxelOptionConnectVolrenIsChecked } then { $this colormap show } else { $this colormap hide }
 	
@@ -651,7 +661,7 @@ $this proc compute {} {
 			unset xCount labfieldCount
 		}
 		
-		if { $resampleZToggleIsChecked } {
+		if { $resampleToggleIsChecked } {
 		
 			
 			
@@ -668,8 +678,7 @@ $this proc compute {} {
 						HxUniformScalarField3 { $result save "Amiramesh ascii" $userSaveState/$result }
 						HxSurface { $result save "HxSurface binary" $userSaveState/$result }
 					}
-
-				} 
+				}
 				
 			} else {
 				$this say "whatever you typed in the \"[$this saveResults getLabel]\" field ... , it is not a valid directory name, so nothing has been saved"
@@ -703,16 +712,16 @@ $this proc compute {} {
 	#assign the Rot buttons individual rotation procedures:
 	if { [$this rotation getOptValue] == 0 } then {#test if menu entry in rotation port is "all"
 
-		$this rotation setCmd 0 { $this rotateAll_180 theArithmeticExtractedVoxelList virtualEvec3 }
-		$this rotation setCmd 1 { $this rotateAll_180 theArithmeticExtractedVoxelList virtualEvec2 }
-		$this rotation setCmd 2 { $this rotateAll_180 theArithmeticExtractedVoxelList virtualEvec1 }
+		$this rotation setCmd 0 { $this rotateAll theArithmeticExtractedVoxelList virtualEvec3 }
+		$this rotation setCmd 1 { $this rotateAll theArithmeticExtractedVoxelList virtualEvec2 }
+		$this rotation setCmd 2 { $this rotateAll theArithmeticExtractedVoxelList virtualEvec1 }
 	}
 	if { [$this rotation getOptValue] != 0 } {#test if menu entry in rotation port is other than "all"
 		
-		set theMenuEntryInRotationPort [lindex $theArithmeticExtractedVoxelList [expr [$this rotation getOptValue] - 1]];#set the text of the menu entry
-		$this rotation setCmd 0 { $this rotateObject_180 theMenuEntryInRotationPort virtualEvec3 }
-		$this rotation setCmd 1 { $this rotateObject_180 theMenuEntryInRotationPort virtualEvec2 }
-		$this rotation setCmd 2 { $this rotateObject_180 theMenuEntryInRotationPort virtualEvec1 }
+		set theMenuEntryInRotationPort [lindex $theArithmeticExtractedVoxelList [expr [$this rotation getOptValue] - 1]];#set the text of the menu entry - would be nice if there where an "getOptValueString" function in Amira, then this line would look like: set theMenuEntryInRotationPort [$this rotation getOptValueString]
+		$this rotation setCmd 0 { $this rotateObject theMenuEntryInRotationPort virtualEvec3 }
+		$this rotation setCmd 1 { $this rotateObject theMenuEntryInRotationPort virtualEvec2 }
+		$this rotation setCmd 2 { $this rotateObject theMenuEntryInRotationPort virtualEvec1 }
 	}
 		
 	$this setVar computeCounter [expr [$this getVar computeCounter] + 1];# computeCounter will get +1 for every run from compute proc

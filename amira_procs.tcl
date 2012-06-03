@@ -60,19 +60,20 @@ $this proc translateTo { point pointToTranslateTo } {
 	return $transformList
 }
 
-#procs which rotates a given object on a given axis (axis is defined by two points in space with a list like: [list 0 1 0])
-$this proc rotateAll_180 { theList evecPointAxis } {
+# procs which rotates a given object(s) on a given axis (axis == world origin to evecPointAxis) \
+  
+$this proc rotateAll { theObjectList evecPointAxis { degrees 180 } } {
 
-	upvar $theList upvList $evecPointAxis upvevecPointAxis
+	upvar $theObjectList upvList $evecPointAxis upvevecPointAxis
 	echo "rotateAll_180: $upvList $upvevecPointAxis"
 	foreach item $upvList {
-		eval "$item rotate $upvevecPointAxis 180"
+		eval "$item rotate $upvevecPointAxis $degrees"
 	}
 }
-$this proc rotateObject_180 { object evecPointAxis } {
+$this proc rotateObject { object evecPointAxis { degrees 180 } } {
 
 	upvar $object upvObject $evecPointAxis upvevecPointAxis
-	eval "$upvObject rotate $upvevecPointAxis 180"
+	eval "$upvObject rotate $upvevecPointAxis $degrees"
 }
 
 # procedure for extracting a bunch of values from an amira spreadsheet object generated from the ShapeAnalysis modul. :\
@@ -153,7 +154,7 @@ $this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnal
 	set theResultFromShapeAnalysis [$shapeAnalysisModul getResult]
 	array set extrValFromSprdsht [$this extractFromSpreadsheet $theResultFromShapeAnalysis]
 	$theResultFromShapeAnalysis master disconnect 
-	#remove $theResultFromShapeAnalysis
+	remove $theResultFromShapeAnalysis
 	return [array get extrValFromSprdsht]
 	
 }
@@ -194,14 +195,14 @@ $this proc makeArrayFromAmiraParameters { field { theComplValArr {} } { concatBu
 $this proc autoConnectToLabelField {} {
 
 	global allConnectedLabFields allEmptyConPorts
+	set allLabelFieldsInPoolList [all HxUniformLabelField3]
+	set allConPorts [$this connectionPorts]
 	
-	set theLabConPortsList [lrange [$this connectionPorts] 1 end]
-	set theList [all HxUniformLabelField3]
-	
-	foreach item $theLabConPortsList {
-		$this $item disconnect
+	foreach item $allConPorts {
+		if { [$this $item isOfType "HxConnection"] } then { $this $item disconnect };#disconnects only HxConnection connection ports (e.g. not colormap port)
 	}
-	foreach item $theList {
+	#(re)connects to all labelfields in pool: 
+	foreach item $allLabelFieldsInPoolList {
 		$this [lindex $allEmptyConPorts 0] connect $item
 		$this compute
 	}
@@ -380,7 +381,6 @@ $this proc conPortLogic {} {
 	for { set i 0 } { $i < [llength [$this connectionPorts]] } { incr i } {
 	
 		if { [$this [lindex [$this connectionPorts] end] source] eq "" && $emptyConPorts > 1 } {
-			echo "DELETING CONN"
 			$this deleteConPortButtonsToggles [expr [llength [$this connectionPorts]] - 2];
 		}
 		
