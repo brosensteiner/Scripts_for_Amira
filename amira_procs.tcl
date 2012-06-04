@@ -162,7 +162,7 @@ $this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnal
   this proc is really slow because of the "brutal force" approach of the algorithm (for about 160 x 160 x 160 voxel fields to crop to about 60 x 60 x 60 it takes about 1:20 minutes on intel core 2 duo 2.8Ghz)!!! \
   some optimization brings the algorithm nevertheless down from 3 min to 1:20 min: after every for loop the range in which the nodes of the voxel field are evaluated is newly adjusted, \
   so that no unnecessary iteratons have to be made \
-  i think this is the tcl "tradeoff" - much faster is the "Auto Crop" from Amira´s crop editor
+  i think this is the Tcl "scripting tradeoff" - much faster is the "Auto Crop" from Amira´s crop editor
 $this proc autoCrop { item { treshhold 0.000000 } } {
 
 	set cropPoints [list];#will hold imin, imax, jmin, jmax, kmin and kmax
@@ -170,6 +170,9 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 	
 	upvar $item upvItem
 	set theDimsList [$upvItem getDims]
+	
+	workArea startWorking;#a progress indicator makes sense in this slow proc
+	workArea setProgressInfo "cropping 1/6"
 	
 	#imin:
 	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
@@ -181,10 +184,14 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $i }
 			}
 		}
+		workArea wasInterrupted
+		workArea setProgressValue [expr (1/6.)*($k/double([lindex $theDimsList 2]))]
 	}
+	
 	lappend cropPoints [expr int([::math::statistics::min $collectedCandidates])]
 	set collectedCandidates [list]
 	
+	workArea setProgressInfo "cropping 2/6"
 	#imax:
 	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
 		
@@ -195,10 +202,13 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $i }
 			}
 		}
+		workArea wasInterrupted
+		workArea setProgressValue [expr (1/6.)+(1/6.)*($k/double([lindex $theDimsList 2]))]
 	}
 	lappend cropPoints [expr int([::math::statistics::max $collectedCandidates])]
 	set collectedCandidates [list]
 	
+	workArea setProgressInfo "cropping 3/6"
 	#jmin:
 	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
 		
@@ -209,10 +219,13 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $j }
 			}
 		}
+		workArea wasInterrupted
+		workArea setProgressValue [expr (2/6.)+(1/6.)*($k/double([lindex $theDimsList 2]))]
 	}
 	lappend cropPoints [expr int([::math::statistics::min $collectedCandidates])]
 	set collectedCandidates [list]
 	
+	workArea setProgressInfo "cropping 4/6"
 	#jmax:
 	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
 		
@@ -223,10 +236,13 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $j }
 			}
 		}
+		workArea wasInterrupted
+		workArea setProgressValue [expr (3/6.)+(1/6.)*($k/double([lindex $theDimsList 2]))]
 	}
 	lappend cropPoints [expr int([::math::statistics::max $collectedCandidates])]
 	set collectedCandidates [list]
 	
+	workArea setProgressInfo "cropping 5/6"
 	#kmin:
 	for { set i [lindex $cropPoints 0] } { $i < [lindex $cropPoints 1]  } { incr i } {
 		
@@ -237,6 +253,8 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $k }
 			}
 		}
+		workArea wasInterrupted
+		workArea setProgressValue [expr (4/6.)+(1/6.)*($i/double([lindex $cropPoints 1]))]
 	}
 	lappend cropPoints [expr int([::math::statistics::min $collectedCandidates])]
 	set collectedCandidates [list]
@@ -251,6 +269,8 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $k }
 			}
 		}
+		workArea wasInterrupted
+		workArea setProgressValue [expr (5/6.)+(1/6.)*($i/double([lindex $cropPoints 1]))]
 	}
 	lappend cropPoints [expr int([::math::statistics::max $collectedCandidates])]
 	
@@ -258,6 +278,8 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 	eval $upvItem crop $cropPoints
 	$upvItem fire;#connected volren module should also be updated, so here is fire
 	
+	workArea setProgressInfo "cropping finished"
+	workArea stopWorking	
 }
 
 # procedure which returns all parameters of a given amira field in a formatted array, were every parameter/value can be fetched. \
