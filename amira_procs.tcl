@@ -65,7 +65,6 @@ $this proc translateTo { point pointToTranslateTo } {
 $this proc rotateAll { theObjectList evecPointAxis { degrees 180 } } {
 
 	upvar $theObjectList upvList $evecPointAxis upvevecPointAxis
-	echo "rotateAll_180: $upvList $upvevecPointAxis"
 	foreach item $upvList {
 		eval "$item rotate $upvevecPointAxis $degrees"
 	}
@@ -159,6 +158,107 @@ $this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnal
 	
 }
 
+# proc for cropping the extracted voxel fields (will be executed everytime the "Auto Crop" button in the "Resample options1" port is pressed). \
+  this proc is really slow because of the "brutal force" approach of the algorithm (for about 160 x 160 x 160 voxel fields to crop to about 60 x 60 x 60 it takes about 1:20 minutes on intel core 2 duo 2.8Ghz)!!! \
+  some optimization brings the algorithm nevertheless down from 3 min to 1:20 min: after every for loop the range in which the nodes of the voxel field are evaluated is newly adjusted, \
+  so that no unnecessary iteratons have to be made \
+  i think this is the tcl "tradeoff" - much faster is the "Auto Crop" from Amira´s crop editor
+$this proc autoCrop { item { treshhold 0.000000 } } {
+
+	set cropPoints [list];#will hold imin, imax, jmin, jmax, kmin and kmax
+	set collectedCandidates [list];#will hold all values which could possibly be the treshold value at which should be cropped
+	
+	upvar $item upvItem
+	set theDimsList [$upvItem getDims]
+	
+	#imin:
+	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
+		
+		for { set j 0 } { $j < [lindex $theDimsList 1]  } { incr j } {
+			
+			for { set i 0 } { $i < [lindex $theDimsList 0]  } { incr i } {
+				
+				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $i }
+			}
+		}
+	}
+	lappend cropPoints [expr int([::math::statistics::min $collectedCandidates])]
+	set collectedCandidates [list]
+	
+	#imax:
+	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
+		
+		for { set j 0 } { $j < [lindex $theDimsList 1]  } { incr j } {
+			
+			for { set i [expr [lindex $theDimsList 0] - 1] } { $i >= [lindex $cropPoints 0]  } { incr i -1 } {
+				
+				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $i }
+			}
+		}
+	}
+	lappend cropPoints [expr int([::math::statistics::max $collectedCandidates])]
+	set collectedCandidates [list]
+	
+	#jmin:
+	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
+		
+		for { set i [lindex $cropPoints 0] } { $i < [lindex $cropPoints 1]  } { incr i } {
+			
+			for { set j 0 } { $j < [lindex $theDimsList 1]  } { incr j } {
+				
+				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $j }
+			}
+		}
+	}
+	lappend cropPoints [expr int([::math::statistics::min $collectedCandidates])]
+	set collectedCandidates [list]
+	
+	#jmax:
+	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
+		
+		for { set i [lindex $cropPoints 0] } { $i < [lindex $cropPoints 1]  } { incr i } {
+			
+			for { set j [expr [lindex $theDimsList 1] - 1] } { $j >= [lindex $cropPoints 2]  } { incr j -1 } {
+				
+				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $j }
+			}
+		}
+	}
+	lappend cropPoints [expr int([::math::statistics::max $collectedCandidates])]
+	set collectedCandidates [list]
+	
+	#kmin:
+	for { set i [lindex $cropPoints 0] } { $i < [lindex $cropPoints 1]  } { incr i } {
+		
+		for { set j [lindex $cropPoints 2] } { $j < [lindex $cropPoints 3]  } { incr j } {
+			
+			for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
+				
+				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $k }
+			}
+		}
+	}
+	lappend cropPoints [expr int([::math::statistics::min $collectedCandidates])]
+	set collectedCandidates [list]
+	
+	#kmax:
+	for { set i [lindex $cropPoints 0] } { $i < [lindex $cropPoints 1]  } { incr i } {
+		
+		for { set j [lindex $cropPoints 2] } { $j < [lindex $cropPoints 3]  } { incr j } {
+			
+			for { set k [expr [lindex $theDimsList 2] - 1] } { $k >= [lindex $cropPoints 4]  } { incr k -1 } {
+				
+				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $k }
+			}
+		}
+	}
+	lappend cropPoints [expr int([::math::statistics::max $collectedCandidates])]
+	
+	$this say "cropPoints for $upvItem: $cropPoints"
+	eval $upvItem crop $cropPoints
+	$upvItem fire;#connected volren module should also be updated, so here is fire
+	
+}
 
 # procedure which returns all parameters of a given amira field in a formatted array, were every parameter/value can be fetched. \
   procedure is needed, because amira´s tcl interface can´t do it in one step \

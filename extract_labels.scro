@@ -7,10 +7,12 @@ package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlev
 # when loading this package amira searches an annoying amount of time when first loaded to find the package. math::bigfloat is also only compatible with tcl 8.4 with a conversion hack.
 package require math::bigfloat;
 package require math::linearalgebra;
+package require math::statistics
 
 namespace import -force \
 						::math::linearalgebra::mkVector \
 						::math::linearalgebra::crossproduct
+						
 
 set moduleName [string map {"\.scro" ""} $this];# the name of the module generated from the script filename
 set theAuthor "Bernhard Rosensteiner"
@@ -136,8 +138,9 @@ $this proc constructor {} {
 	# creates resample options
 	$this newPortSeparator resampleSeparator
 	$this newPortGeneric resampleOptions1
-	$this resampleOptions1 insertIntText 0 5
+	$this resampleOptions1 insertIntText 0 11
 	$this resampleOptions1 insertPushButton 1 "Auto Crop"
+	$this resampleOptions1 setValue 0 0;#default for treshold is 0
 	$this newPortButtonMenu resampleOptions2 1 1
 	$this resampleOptions2 setLabel 0 "Resample!"
 	$this resampleOptions2 setOptLabels 0 [list "Nearest Neighbor" "Standard" "Lanczos"]
@@ -200,18 +203,20 @@ $this proc compute {} {
 	global lastLabSetArray labSetList
 
 	# some status checks on toogle bottons:
-	set overwriteToggleIsChecked [$this result getValue 0]
-	set polygonSurfaceToggleIsChecked [$this result getValue 1]
-	set voxelDataToggleIsChecked [$this result getValue 2]
-	set resampleToggleIsChecked [$this result getValue 3]
-	set resultSelectionState [$this result getState]
+	set overwriteToggleIsChecked		[$this result getValue 0]
+	set polygonSurfaceToggleIsChecked	[$this result getValue 1]
+	set voxelDataToggleIsChecked		[$this result getValue 2]
+	set resampleToggleIsChecked			[$this result getValue 3]
+	set resultSelectionState			[$this result getState]
 	
-	set voxelOptionAlignPrincipalAxisIsChecked [$this voxelOptions getValue 0]
-	set voxelOptionMassIsChecked [$this voxelOptions getValue 1]
-	set voxelOptionConnectVolrenIsChecked [$this voxelOptions getValue 2]
+	set voxelOptionAlignPrincipalAxisIsChecked	[$this voxelOptions getValue 0]
+	set voxelOptionMassIsChecked				[$this voxelOptions getValue 1]
+	set voxelOptionConnectVolrenIsChecked		[$this voxelOptions getValue 2]
 	
 	set voxelOptionAxis1WhichIsChecked [$this axis1 getValue]
 	set voxelOptionAxis2WhichIsChecked [$this axis2 getValue]
+	
+	set autoCropButtonisPressed [$this resampleOptions1 isItemNew 1];# a generic port has no option to allow setting a procedure for a button (i.e. setCmd) this means i have to do the button check manually with "if-else" statements ...
 	
 	$this checkModuleStateAndSetVariables;
 	
@@ -320,7 +325,7 @@ $this proc compute {} {
 	# ********** actions ********** \
 	  enters only here when "Apply" button ($this action port) of $this is pressed:
 	
-	if { ![$this action getValue] } {# start calculation when action button is pressed and $this has a valid source
+	if { [$this action isNew] } {# start calculation when action button is pressed
 	
 		workArea startWorking
 	
@@ -661,30 +666,6 @@ $this proc compute {} {
 			unset xCount labfieldCount
 		}
 		
-		if { $resampleToggleIsChecked } {
-		
-			
-			
-		}
-		
-		# saving routine:		
-		if { $userSaveState ne "" } {# user has typed something in the saveResults port
-			
-			if { [file isdirectory $userSaveState] } {
-			
-				foreach result $theCompleteExtractedList {
-					
-					switch -exact [$result getTypeId] {
-						HxUniformScalarField3 { $result save "Amiramesh ascii" $userSaveState/$result }
-						HxSurface { $result save "HxSurface binary" $userSaveState/$result }
-					}
-				}
-				
-			} else {
-				$this say "whatever you typed in the \"[$this saveResults getLabel]\" field ... , it is not a valid directory name, so nothing has been saved"
-			}
-			
-		}
 		
 		if { [info exists labfieldCount] } { unset labfieldCount theLabSetFromLabSetList }
 		
@@ -707,6 +688,37 @@ $this proc compute {} {
 		workArea setProgressValue 1
 		workArea stopWorking
 					
+	}
+	
+	if { $resampleToggleIsChecked && $theArithmeticExtractedVoxelList ne [list] } {
+
+		if { $autoCropButtonisPressed } then {
+			
+			set theTreshhold [$this resampleOptions1 getValue 0]
+			foreach item $theArithmeticExtractedVoxelList {
+				$this autoCrop item $theTreshhold
+			}
+		}
+		
+	}
+	
+	# saving routine:		
+	if { $userSaveState ne "" && $theCompleteExtractedList ne [list] } {# user has typed something in the saveResults port and theCompleteExtractedList is not empty
+		
+		if { [file isdirectory $userSaveState] } {
+		
+			foreach result $theCompleteExtractedList {
+				
+				switch -exact [$result getTypeId] {
+					HxUniformScalarField3 { $result save "Amiramesh ascii" $userSaveState/$result }
+					HxSurface { $result save "HxSurface binary" $userSaveState/$result }
+				}
+			}
+			
+		} else {
+			$this say "whatever you typed in the \"[$this saveResults getLabel]\" field ... , it is not a valid directory name, so nothing has been saved"
+		}
+		
 	}
 	
 	#assign the Rot buttons individual rotation procedures:
