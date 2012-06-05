@@ -160,119 +160,145 @@ $this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnal
 
 # proc for cropping the extracted voxel fields (will be executed everytime the "Auto Crop" button in the "Resample options1" port is pressed). \
   this proc is really slow because of the "brutal force" approach of the algorithm (for about 160 x 160 x 160 voxel fields to crop to about 60 x 60 x 60 it takes about 1:20 minutes on intel core 2 duo 2.8Ghz)!!! \
-  some optimization brings the algorithm nevertheless down from 3 min to 1:20 min: after every for loop the range in which the nodes of the voxel field are evaluated is newly adjusted, \
+  some optimization brings the algorithm nevertheless down from 3 minutes to 58 seconds: after every for loop the range in which the nodes of the voxel field are evaluated is newly adjusted, \
   so that no unnecessary iteratons have to be made \
-  i think this is the Tcl "scripting tradeoff" - much faster is the "Auto Crop" from Amira´s crop editor
+  i think this slowness is the Tcl "scripting tradeoff" - much faster is the "C++ Auto Crop" from Amira´s crop editor
 $this proc autoCrop { item { treshhold 0.000000 } } {
 
-	set cropPoints [list];#will hold imin, imax, jmin, jmax, kmin and kmax
-	set collectedCandidates [list];#will hold all values which could possibly be the treshold value at which should be cropped
-	
 	upvar $item upvItem
+	
+	set cropPoints [list 0 [lindex [$upvItem getDims] 0] 0 [lindex [$upvItem getDims] 1] 0 [lindex [$upvItem getDims] 2]];#will hold imin, imax, jmin, jmax, kmin and kmax
+	set collectedCandidates [list];#will hold all values which could possibly be the treshold value at which should be cropped
 	set theDimsList [$upvItem getDims]
+	#makes shure treshold is not out of max value (when treshold is greater than max value it will be set to max value):
+	if { $treshhold >= [lindex [$upvItem getRange] 1] } then {
+		set treshhold [expr [lindex [$upvItem getRange] 1] - 1]
+		$this say "treshold is greater than max value in voxel field! Will be set to: [expr [lindex [$upvItem getRange] 1] - 1]"
+	}
 	
 	workArea startWorking;#a progress indicator makes sense in this slow proc
 	workArea setProgressInfo "cropping 1/6"
 	
 	#imin:
+	set newDeep [lindex $theDimsList 0]
 	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
 		
 		for { set j 0 } { $j < [lindex $theDimsList 1]  } { incr j } {
 			
-			for { set i 0 } { $i < [lindex $theDimsList 0]  } { incr i } {
+			for { set i 0 } { $i < $newDeep } { incr i } {
 				
-				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $i }
+				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $i; break }
 			}
+			if { $collectedCandidates ne [list] } then { set newDeep [expr int([::math::statistics::min $collectedCandidates])] }
 		}
 		workArea wasInterrupted
 		workArea setProgressValue [expr (1/6.)*($k/double([lindex $theDimsList 2]))]
 	}
 	
-	lappend cropPoints [expr int([::math::statistics::min $collectedCandidates])]
+	if { $collectedCandidates ne [list] } then { set cropPoints [lreplace $cropPoints 0 0 [expr int([::math::statistics::min $collectedCandidates])]] }
 	set collectedCandidates [list]
 	
 	workArea setProgressInfo "cropping 2/6"
 	#imax:
+	set newDeep [lindex $cropPoints 0]
 	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
 		
 		for { set j 0 } { $j < [lindex $theDimsList 1]  } { incr j } {
 			
-			for { set i [expr [lindex $theDimsList 0] - 1] } { $i >= [lindex $cropPoints 0]  } { incr i -1 } {
+			for { set i [expr [lindex $theDimsList 0] - 1] } { $i >= $newDeep } { incr i -1 } {
 				
-				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $i }
+				if { [$upvItem getValue $i $j $k] > $treshhold } then {
+					lappend collectedCandidates $i
+					break 
+				}
 			}
+			if { $collectedCandidates ne [list] } then { set newDeep [expr int([::math::statistics::max $collectedCandidates])] }
 		}
 		workArea wasInterrupted
 		workArea setProgressValue [expr (1/6.)+(1/6.)*($k/double([lindex $theDimsList 2]))]
 	}
-	lappend cropPoints [expr int([::math::statistics::max $collectedCandidates])]
+	if { $collectedCandidates ne [list] } then { set cropPoints [lreplace $cropPoints 1 1 [expr int([::math::statistics::max $collectedCandidates])]] }
 	set collectedCandidates [list]
 	
 	workArea setProgressInfo "cropping 3/6"
 	#jmin:
+	set newDeep [lindex $theDimsList 1]
 	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
 		
 		for { set i [lindex $cropPoints 0] } { $i < [lindex $cropPoints 1]  } { incr i } {
 			
-			for { set j 0 } { $j < [lindex $theDimsList 1]  } { incr j } {
+			for { set j 0 } { $j < $newDeep  } { incr j } {
 				
-				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $j }
+				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $j; break }
 			}
+			if { $collectedCandidates ne [list] } then { set newDeep [expr int([::math::statistics::min $collectedCandidates])] }
 		}
 		workArea wasInterrupted
 		workArea setProgressValue [expr (2/6.)+(1/6.)*($k/double([lindex $theDimsList 2]))]
 	}
-	lappend cropPoints [expr int([::math::statistics::min $collectedCandidates])]
+	if { $collectedCandidates ne [list] } then { set cropPoints [lreplace $cropPoints 2 2 [expr int([::math::statistics::min $collectedCandidates])]] }
 	set collectedCandidates [list]
 	
 	workArea setProgressInfo "cropping 4/6"
 	#jmax:
+	set newDeep [lindex $cropPoints 2]
 	for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
 		
 		for { set i [lindex $cropPoints 0] } { $i < [lindex $cropPoints 1]  } { incr i } {
 			
-			for { set j [expr [lindex $theDimsList 1] - 1] } { $j >= [lindex $cropPoints 2]  } { incr j -1 } {
+			for { set j [expr [lindex $theDimsList 1] - 1] } { $j >= $newDeep } { incr j -1 } {
 				
-				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $j }
+				if { [$upvItem getValue $i $j $k] > $treshhold } then {
+					lappend collectedCandidates $j
+					break 
+				}
 			}
+			if { $collectedCandidates ne [list] } then { set newDeep [expr int([::math::statistics::max $collectedCandidates])] }
 		}
 		workArea wasInterrupted
 		workArea setProgressValue [expr (3/6.)+(1/6.)*($k/double([lindex $theDimsList 2]))]
 	}
-	lappend cropPoints [expr int([::math::statistics::max $collectedCandidates])]
+	if { $collectedCandidates ne [list] } then { set cropPoints [lreplace $cropPoints 3 3 [expr int([::math::statistics::max $collectedCandidates])]] }
 	set collectedCandidates [list]
 	
 	workArea setProgressInfo "cropping 5/6"
 	#kmin:
+	set newDeep [lindex $theDimsList 2]
 	for { set i [lindex $cropPoints 0] } { $i < [lindex $cropPoints 1]  } { incr i } {
 		
 		for { set j [lindex $cropPoints 2] } { $j < [lindex $cropPoints 3]  } { incr j } {
 			
-			for { set k 0 } { $k < [lindex $theDimsList 2]  } { incr k } {
+			for { set k 0 } { $k < $newDeep  } { incr k } {
 				
-				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $k }
+				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $k; break }
 			}
+			if { $collectedCandidates ne [list] } then { set newDeep [expr int([::math::statistics::min $collectedCandidates])] }
 		}
 		workArea wasInterrupted
 		workArea setProgressValue [expr (4/6.)+(1/6.)*($i/double([lindex $cropPoints 1]))]
 	}
-	lappend cropPoints [expr int([::math::statistics::min $collectedCandidates])]
+	if { $collectedCandidates ne [list] } then { set cropPoints [lreplace $cropPoints 4 4 [expr int([::math::statistics::min $collectedCandidates])]] }
 	set collectedCandidates [list]
 	
 	#kmax:
+	set newDeep [lindex $cropPoints 4]
 	for { set i [lindex $cropPoints 0] } { $i < [lindex $cropPoints 1]  } { incr i } {
 		
 		for { set j [lindex $cropPoints 2] } { $j < [lindex $cropPoints 3]  } { incr j } {
 			
-			for { set k [expr [lindex $theDimsList 2] - 1] } { $k >= [lindex $cropPoints 4]  } { incr k -1 } {
+			for { set k [expr [lindex $theDimsList 2] - 1] } { $k >= $newDeep } { incr k -1 } {
 				
-				if { [$upvItem getValue $i $j $k] > $treshhold } then { lappend collectedCandidates $k }
+				if { [$upvItem getValue $i $j $k] > $treshhold } then {
+					lappend collectedCandidates $k
+					break 
+				}
 			}
+			if { $collectedCandidates ne [list] } then { set newDeep [expr int([::math::statistics::max $collectedCandidates])] }
 		}
 		workArea wasInterrupted
 		workArea setProgressValue [expr (5/6.)+(1/6.)*($i/double([lindex $cropPoints 1]))]
 	}
-	lappend cropPoints [expr int([::math::statistics::max $collectedCandidates])]
+	if { $collectedCandidates ne [list] } then { set cropPoints [lreplace $cropPoints 5 5 [expr int([::math::statistics::max $collectedCandidates])]] }
 	
 	$this say "cropPoints for $upvItem: $cropPoints"
 	eval $upvItem crop $cropPoints
