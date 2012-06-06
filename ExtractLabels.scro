@@ -45,18 +45,22 @@ set allEmptyConPorts [list];# all empty connction ports of $this
 set labOKFlagList [list];# saves if labels are ok
 
 # i dont´t want name clashes with user given names for modules
-# so here are the hopefully cryptic enough generated names for the modules $this can creates:
+# so here are the hopefully cryptic enough names for the modules $this can create:
 set surfaceGenModul XxXSurfaceGen_${moduleName}
 set surfaceViewModul XxXSurfaceView_${moduleName}
 set extractSurfaceModul XxXextractSurface_${moduleName}
 set alignPrincipalAxesModul XxXalignPrincipalAxes_${moduleName}
 set arythmeticModul XxXArithmetic_${moduleName}
 set shapeAnalysisModul XxXShapeAnalysis_${moduleName}
+set applyTransformModule XxXApplyTransform_${moduleName}
+set obiqueSliceModule XxXOliqueSlice_${moduleName}
 
 #
 # **** the amira script object procedures ****
 #
 $this proc constructor {} {
+	
+	global theArithmeticExtractedVoxelList
 
 	# $this setNoSave 1;# $this can now correctly be saved with the network, so no need for this ...
 
@@ -143,6 +147,7 @@ $this proc constructor {} {
 	$this resampleOptions1 setValue 0 0;#default for treshold is 0
 	$this newPortButtonMenu resampleOptions2 1 1
 	$this resampleOptions2 setLabel 0 "Resample!"
+	$this resampleOptions2 setCmd 0 { $this reSlice theArithmeticExtractedVoxelList }
 	$this resampleOptions2 setOptLabels 0 [list "Nearest Neighbor" "Standard" "Lanczos"]
 	$this resampleOptions2 setOptValueString "Standard";#default value
 	$this resampleOptions2 setNumOptEntries 3
@@ -163,7 +168,7 @@ $this proc constructor {} {
 
 $this proc destructor {} {
 	
-	global surfaceGenModul arythmeticModul shapeAnalysisModul
+	global surfaceGenModul arythmeticModul shapeAnalysisModul applyTransformModule obiqueSliceModule
 	global surfaceViewModul extractSurfaceModul
 	global userLabListSelState lastLabSetArray allConnectedLabFields labCountList labOKFlagList
 	global labSetList emptyConPorts allEmptyConPorts
@@ -174,7 +179,8 @@ $this proc destructor {} {
 	if { [lsearch [all] $extractSurfaceModul] != -1 }	{ remove $extractSurfaceModul }
 	if { [lsearch [all] $arythmeticModul] != -1 }		{ remove $arythmeticModul }
 	if { [lsearch [all] $shapeAnalysisModul] != -1 }	{ remove $shapeAnalysisModul }
-	
+	if { [lsearch [all] $applyTransformModule] != -1 }	{ remove $applyTransformModule }
+	if { [lsearch [all] $obiqueSliceModule] != -1 }		{ remove $obiqueSliceModule }	
 	set hideNewModules 0
 	
 }
@@ -193,7 +199,7 @@ $this proc compute {} {
 	$this testBreak;# for safety...
 	
 	global moduleName theAuthor
-	global surfaceViewModul extractSurfaceModul surfaceGenModul shapeAnalysisModul
+	global surfaceViewModul extractSurfaceModul surfaceGenModul shapeAnalysisModul applyTransformModule obiqueSliceModule
 	global theExtractedSurfacesList theCompleteExtractedList theArithmeticExtractedVoxelList theResampleZExtractedSurfacesList theAdditionalDataList volRenList
 	global virtualEvec1 virtualEvec2 virtualEvec3 theMenuEntryInRotationPort
 	global alignPrincipalAxesModul arythmeticModul
@@ -304,6 +310,13 @@ $this proc compute {} {
 		$this resampleSeparator show
 		$this resampleOptions1 show
 		$this resampleOptions2 show
+		
+		if { $theArithmeticExtractedVoxelList eq [list] } then {
+			$this resampleOptions1 setSensitivity 0 0
+			$this resampleOptions1 setSensitivity 1 0
+			$this resampleOptions2 setSensitivity 0 0
+			$this resampleOptions2 setOptSensitivity 0 0
+		}
 	} else {# "resample z" is not checked
 		
 		$this resampleSeparator hide
@@ -560,7 +573,7 @@ $this proc compute {} {
 														
 							set resetToWorldCoord [eval $this switchNumberSigns $valFromSprdsht($i,c)]
 							eval "$theItemToTransform setTranslation $resetToWorldCoord";#translates center of object in 3D space to world´s origin (i.e. 0, 0, 0)
-														
+												
 							#the rotations for aligning the eigenvectors to the world x, y and z axis:
 							eval "$theItemToTransform rotate -wz [expr -$alpha3InDeg]"
 							eval "$theItemToTransform rotate -wy [expr $beta3InDeg]"
@@ -606,15 +619,6 @@ $this proc compute {} {
 								set virtualEvec2 "-wy"
 								set virtualEvec3 "-wz"
 							}
-							
-
-#							echo "theROTATION: [$theItemToTransform getRotation]"
-#							echo "EIGENVECTOR1 alpha1: $alpha1InDeg"
-#							echo "EIGENVVECTOR2 beta1: $beta1InDeg"
-#							echo "EIGENVECTOR2 alpha2: $alpha2InDeg"
-#							echo "EIGENVVECTOR2 beta2: $beta2InDeg"
-#							echo "EIGENVECTOR3 alpha3: $alpha3InDeg"
-#							echo "EIGENVVECTOR3 beta3: $beta3InDeg"
 							
 							$theItemToTransform fire 
 							incr xCount
@@ -666,7 +670,6 @@ $this proc compute {} {
 			unset xCount labfieldCount
 		}
 		
-		
 		if { [info exists labfieldCount] } { unset labfieldCount theLabSetFromLabSetList }
 		
 		# user info which will be shown in the console if necessary:
@@ -691,6 +694,11 @@ $this proc compute {} {
 	}
 	
 	if { $resampleToggleIsChecked && $theArithmeticExtractedVoxelList ne [list] } {
+		
+		$this resampleOptions1 setSensitivity 0 1
+		$this resampleOptions1 setSensitivity 1 1
+		$this resampleOptions2 setSensitivity 0 1
+		$this resampleOptions2 setOptSensitivity 0 1
 
 		if { $autoCropButtonisPressed } then {
 			
@@ -700,6 +708,11 @@ $this proc compute {} {
 			}
 		}
 		
+	} else {
+		$this resampleOptions1 setSensitivity 0 0
+		$this resampleOptions1 setSensitivity 1 0
+		$this resampleOptions2 setSensitivity 0 0
+		$this resampleOptions2 setOptSensitivity 0 0
 	}
 	
 	# saving routine:		

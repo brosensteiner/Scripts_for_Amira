@@ -170,14 +170,15 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 	set cropPoints [list 0 [lindex [$upvItem getDims] 0] 0 [lindex [$upvItem getDims] 1] 0 [lindex [$upvItem getDims] 2]];#will hold imin, imax, jmin, jmax, kmin and kmax
 	set collectedCandidates [list];#will hold all values which could possibly be the treshold value at which should be cropped
 	set theDimsList [$upvItem getDims]
-	#makes shure treshold is not out of max value (when treshold is greater than max value it will be set to max value):
+	#makes shure treshold is not out of max value (when treshold is greater than max value it will be set to max value -1):
 	if { $treshhold >= [lindex [$upvItem getRange] 1] } then {
 		set treshhold [expr [lindex [$upvItem getRange] 1] - 1]
-		$this say "treshold is greater than max value in voxel field! Will be set to: [expr [lindex [$upvItem getRange] 1] - 1]"
+		$this say "treshold you specified is greater than max value in voxel field! Will be set to: [expr [lindex [$upvItem getRange] 1] - 1]"
 	}
 	
 	workArea startWorking;#a progress indicator makes sense in this slow proc
 	workArea setProgressInfo "cropping 1/6"
+	
 	
 	#imin:
 	set newDeep [lindex $theDimsList 0]
@@ -301,11 +302,41 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 	if { $collectedCandidates ne [list] } then { set cropPoints [lreplace $cropPoints 5 5 [expr int([::math::statistics::max $collectedCandidates])]] }
 	
 	$this say "cropPoints for $upvItem: $cropPoints"
-	eval $upvItem crop $cropPoints
+	eval $upvItem crop $cropPoints;#cropping of the item
 	$upvItem fire;#connected volren module should also be updated, so here is fire
 	
 	workArea setProgressInfo "cropping finished"
 	workArea stopWorking	
+}
+
+#procedure for reslicing a voxel field to a given plane.
+$this proc reSlice { objectList } {
+
+	global applyTransformModule obiqueSliceModule
+	
+	echo "reslice!!"
+	upvar $objectList upvObjectList
+	
+	foreach object $upvObjectList {
+		
+		#make the connections:
+		$this createModuleAndConnectIfOkToSource HxApplyTransform $applyTransformModule $object
+		$this createModuleAndConnectIfOkToSource HxObliqueSlice $obiqueSliceModule $object
+		$applyTransformModule reference connect $obiqueSliceModule
+		
+		#adjust the oliqzeslice plane:
+		$obiqueSliceModule setPlane 0 0 0 0 0 1 0 1 0
+		$obiqueSliceModule rotate 0 0 1 0;#TODO: need i some rotation?
+		$obiqueSliceModule compute
+		
+		#set some port values:
+		$applyTransformModule mode setValue 1
+		$applyTransformModule interpolation setValue [$this resampleOptions2 getValue 1]
+		
+		#apply transformation:
+		$applyTransformModule action setValue 0 1
+		$applyTransformModule fire
+	}
 }
 
 # procedure which returns all parameters of a given amira field in a formatted array, were every parameter/value can be fetched. \
