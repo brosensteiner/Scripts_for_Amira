@@ -327,7 +327,7 @@ $this proc voxelOptionAxis2WhichIsChecked {} {
 #procedure for reslicing a voxel field to a given plane.
 $this proc reSlice { objectList } {
 
-	global applyTransformModule obiqueSliceModule shapeAnalysisModul theCompleteExtractedList
+	global applyTransformModule obiqueSliceModule shapeAnalysisModul theCompleteExtractedList theResampledExtractedVoxelList
 	upvar $objectList upvObjectList
 	
 	foreach object $upvObjectList {
@@ -384,10 +384,11 @@ $this proc reSlice { objectList } {
 		$applyTransformModule action setValue 0 1
 		$applyTransformModule fire
 		
-		#get result and append to global theCompleteExtractedList:
+		#get result and append to global theCompleteExtractedList/theResampledExtractedVoxelList:
 		set theResult [$applyTransformModule getResult]
 		$theResult master disconnect
 		lappend theCompleteExtractedList $theResult
+		lappend theResampledExtractedVoxelList $theResult;#who knows for what i will need it ...
 	}
 }
 

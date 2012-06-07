@@ -21,28 +21,28 @@ set theAuthor "Bernhard Rosensteiner"
 $this setVar runCounter 0
 $this setVar computeCounter 0
 
-set theExtractedSurfacesList [list];# keeps track of surfaces of the current run
-set theArithmeticExtractedVoxelList [list];# keeps track of all extracted surfaces from arithmetic runs
 #global axes specification for rotating objects around world center (see rotation port implemenation):
-set virtualEvec1 "-wx"
-set virtualEvec2 "-wy"
-set virtualEvec3 "-wz"
-set theMenuEntryInRotationPort "all";#default is "all" for rotation port
-set theResampleZExtractedSurfacesList [list];# keeps track of all extracted surfaces from resample z runs
-set theAdditionalDataList [list];#keeps track of additional data that $this produces (e.g. spreadsheet objects)
-set volRenList [list];#$this maybe creats Volren modules and they will be collected in this list
-set theCompleteExtractedList [list];# keeps track of all extracted surfaces from all runs
+set virtualEvec1					"-wx"
+set virtualEvec2					"-wy"
+set virtualEvec3					"-wz"
+set theExtractedSurfacesList		[list];# keeps track of surfaces of the current run
+set theArithmeticExtractedVoxelList	[list];# keeps track of all extracted surfaces from arithmetic runs
+set theMenuEntryInRotationPort		"all";#default is "all" for rotation port
+set theResampledExtractedVoxelList	[list];# keeps track of all extracted surfaces from resample z runs
+set theAdditionalDataList			[list];#keeps track of additional data that $this produces (e.g. spreadsheet objects)
+set volRenList						[list];#$this maybe creats Volren modules and they will be collected in this list
+set theCompleteExtractedList		[list];# keeps track of all extracted surfaces from all runs
 
-array set userLabListSelState {};# array for the selection state of user selected toggles
-array set lastLabSetArray {};# array of all labels in last labSet
-set labCountList [list];# count list of all lab gui toogles
-set allConnectedLabFields [list];# list of all connection ports which have a source
-set labSetList [list];# list of all lab sets which are in gui
-set userResultSelState [list]
-set userSaveState [list]
-set emptyConPorts 0;# for counting empty connection ports of $this
-set allEmptyConPorts [list];# all empty connction ports of $this
-set labOKFlagList [list];# saves if labels are ok
+array set userLabListSelState		{};# array for the selection state of user selected toggles
+array set lastLabSetArray			{};# array of all labels in last labSet
+set labCountList					[list];# count list of all lab gui toogles
+set allConnectedLabFields			[list];# list of all connection ports which have a source
+set labSetList						[list];# list of all lab sets which are in gui
+set userResultSelState				[list]
+set userSaveState					[list]
+set emptyConPorts					0;# for counting empty connection ports of $this
+set allEmptyConPorts				[list];# all empty connction ports of $this
+set labOKFlagList					[list];# saves if labels are ok
 
 # i dont´t want name clashes with user given names for modules
 # so here are the hopefully cryptic enough names for the modules $this can create:
@@ -200,7 +200,7 @@ $this proc compute {} {
 	
 	global moduleName theAuthor
 	global surfaceViewModul extractSurfaceModul surfaceGenModul shapeAnalysisModul applyTransformModule obiqueSliceModule
-	global theExtractedSurfacesList theCompleteExtractedList theArithmeticExtractedVoxelList theResampleZExtractedSurfacesList theAdditionalDataList volRenList
+	global theExtractedSurfacesList theCompleteExtractedList theArithmeticExtractedVoxelList theResampledExtractedVoxelList theAdditionalDataList volRenList
 	global virtualEvec1 virtualEvec2 virtualEvec3 theMenuEntryInRotationPort
 	global alignPrincipalAxesModul arythmeticModul
 	global userLabListSelState userSaveState
