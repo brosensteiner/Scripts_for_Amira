@@ -36,7 +36,7 @@ $this proc clearBundle { field args } {
 # simple port test: procedure returns 1 when module has port, otherwise it returns 0
 $this proc hasPort {modul port} {
 	upvar #1 $modul myModule
-	if { [lsearch [$myModule allPorts] $port] != -1 } { return 1 } else { return 0 }
+	if { [lsearch [$myModule allPorts] $port] != -1 } then { return 1 } else { return 0 }
 }
 
 #simple proc for switching between positiv and negative numbers:
@@ -76,9 +76,10 @@ $this proc rotateObject { object evecPointAxis { degrees 180 } } {
 }
 
 # procedure for extracting a bunch of values from an amira spreadsheet object generated from the ShapeAnalysis modul. :\
-  return value is an array which holds the values ("array set varName spreadExtractArray arg" catches the array returned \
+  return value is an array which holds the values ("array set varName extractFromSpreadsheet spreadObj" catches the array returned \
   by extractFromSpreadsheet again in an array). This proc works only in conjunctions with the ShapeAnalysis module \
-  because the generated spreadsheet from this module has a particular order of the labels (i.e. bundle index)!
+  because the generated spreadsheet from this module has a particular order of rows and columns (labelfields are coded in the spreadsheet as their bundle-index not as there names!!!) \
+  getting the values from the array for example: $theArray(bundleindex,evector1)
 $this proc extractFromSpreadsheet { spreadObj } {
 	
 	array set spreadExtractArray {}
@@ -309,12 +310,24 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 	workArea stopWorking	
 }
 
+#helper procs to check some values of $this:
+$this proc voxelOptionMassIsChecked {} {
+	set checked [$this voxelOptions getValue 1]
+	return $checked
+}
+$this proc voxelOptionAxis1WhichIsChecked {} {
+	set checked [$this axis1 getValue]
+	return $checked
+}
+$this proc voxelOptionAxis2WhichIsChecked {} {
+	set checked [$this axis2 getValue]
+	return $checked
+}
+
 #procedure for reslicing a voxel field to a given plane.
 $this proc reSlice { objectList } {
 
-	global applyTransformModule obiqueSliceModule
-	
-	echo "reslice!!"
+	global applyTransformModule obiqueSliceModule shapeAnalysisModul theCompleteExtractedList
 	upvar $objectList upvObjectList
 	
 	foreach object $upvObjectList {
@@ -324,18 +337,57 @@ $this proc reSlice { objectList } {
 		$this createModuleAndConnectIfOkToSource HxObliqueSlice $obiqueSliceModule $object
 		$applyTransformModule reference connect $obiqueSliceModule
 		
-		#adjust the oliqzeslice plane:
-		$obiqueSliceModule setPlane 0 0 0 0 0 1 0 1 0
-		$obiqueSliceModule rotate 0 0 1 0;#TODO: need i some rotation?
+		#get the original labelfield/orig_bundleindex to which the "object" was connected:
+		set orig_labelfield	 [$object parameters ModuleInfo orig_labelfield getValue]
+		set orig_bundleindex [$object parameters ModuleInfo orig_bundleindex getValue]
+		
+		#extract the eigenvectors:
+		
+		array set valFromSprdsht [$this makeShapeAnalysis $orig_labelfield $shapeAnalysisModul [$this voxelOptionMassIsChecked]]
+		
+		#adjust the oliqueslice plane according to the axis1 and axis2 settings of $this:
+		if {
+			[$this voxelOptionAxis1WhichIsChecked] == 1 && [$this voxelOptionAxis2WhichIsChecked] == 0 || \
+			[$this voxelOptionAxis1WhichIsChecked] == 0 && [$this voxelOptionAxis2WhichIsChecked] == 1
+		} then {
+		
+			eval $obiqueSliceModule setPlane $valFromSprdsht($orig_bundleindex,c) \
+											 $valFromSprdsht($orig_bundleindex,evector2) \
+											 $valFromSprdsht($orig_bundleindex,evector1)
+		}
+		if {
+			[$this voxelOptionAxis1WhichIsChecked] == 2 && [$this voxelOptionAxis2WhichIsChecked] == 0 || \
+			[$this voxelOptionAxis1WhichIsChecked] == 0 && [$this voxelOptionAxis2WhichIsChecked] == 2
+		} then {
+			
+			eval $obiqueSliceModule setPlane $valFromSprdsht($orig_bundleindex,c) \
+											 $valFromSprdsht($orig_bundleindex,evector3) \
+											 $valFromSprdsht($orig_bundleindex,evector1)
+		}
+		if {
+			 [$this voxelOptionAxis1WhichIsChecked] == 2 && [$this voxelOptionAxis2WhichIsChecked] == 1 || \
+			 [$this voxelOptionAxis1WhichIsChecked] == 1 && [$this voxelOptionAxis2WhichIsChecked] == 2
+		} then {
+			
+			eval $obiqueSliceModule setPlane $valFromSprdsht($orig_bundleindex,c) \
+											 $valFromSprdsht($orig_bundleindex,evector3) \
+											 $valFromSprdsht($orig_bundleindex,evector2)
+		}
+		
 		$obiqueSliceModule compute
 		
 		#set some port values:
 		$applyTransformModule mode setValue 1
-		$applyTransformModule interpolation setValue [$this resampleOptions2 getValue 1]
+		$applyTransformModule interpolation setValue [$this resampleOptions2 getOptValue 0 1];#set Standard, Lanczos or Nearest Neighbor interpolation method from corresponding $this port
 		
 		#apply transformation:
 		$applyTransformModule action setValue 0 1
 		$applyTransformModule fire
+		
+		#get result and append to global theCompleteExtractedList:
+		set theResult [$applyTransformModule getResult]
+		$theResult master disconnect
+		lappend theCompleteExtractedList $theResult
 	}
 }
 

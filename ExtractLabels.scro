@@ -216,11 +216,7 @@ $this proc compute {} {
 	set resultSelectionState			[$this result getState]
 	
 	set voxelOptionAlignPrincipalAxisIsChecked	[$this voxelOptions getValue 0]
-	set voxelOptionMassIsChecked				[$this voxelOptions getValue 1]
 	set voxelOptionConnectVolrenIsChecked		[$this voxelOptions getValue 2]
-	
-	set voxelOptionAxis1WhichIsChecked [$this axis1 getValue]
-	set voxelOptionAxis2WhichIsChecked [$this axis2 getValue]
 	
 	set autoCropButtonisPressed [$this resampleOptions1 isItemNew 1];# a generic port has no option to allow setting a procedure for a button (i.e. setCmd) this means i have to do the button check manually with "if-else" statements ...
 	
@@ -352,20 +348,23 @@ $this proc compute {} {
 		  surface- voxel- and additional-data lists: 
 		if { $overwriteToggleIsChecked == 1 && $theCompleteExtractedList ne [list] } {
 		
-			foreach surfaceToRemove $theCompleteExtractedList {
-				remove $surfaceToRemove
+			foreach item $theCompleteExtractedList {
+				$this say "overwrite: $item"
+				remove $item
 			}
-			foreach additionalData $theAdditionalDataList {
-				remove $additionalData
+			foreach addData $theAdditionalDataList {
+				$this say "overwrite: $addData"
+				remove $addData
 			}
 			foreach volRenModul $volRenList {
+				$this say "overwrite: $volRenModul"
 				remove $volRenModul
 			}
 			# delete all list elements:
 			set theCompleteExtractedList [list]
 			set theAdditionalDataList [list]
 			set volRenList [list]
-			$this say "old results overwritten"
+			$this say "all created data deleted"
 			
 		}
 		
@@ -460,7 +459,7 @@ $this proc compute {} {
 				
 				}
 
-				lset theCompleteExtractedList [concat $theCompleteExtractedList $theExtractedSurfacesList];# save all generated surfaces in theCompleteExtractedList list
+				set theCompleteExtractedList [concat $theCompleteExtractedList $theExtractedSurfacesList];# save all generated surfaces in theCompleteExtractedList list
 				
 				$surfaceViewModul buffer setValue 1;# only get rid of the last selection in buffer which would otherwise be visible in the viewer
 				$surfaceViewModul compute
@@ -509,8 +508,12 @@ $this proc compute {} {
 						$theResultFromArithmeticCalcName master disconnect;# disconnect, otherwise the result from arithmetic module will be overridden
 						$theResultFromArithmeticCalcName setUndefinedValue 0;#shure is shure ...
 						
-						#some additional info: 	
-						$this stampField $theResultFromArithmeticCalcName ModuleInfo ModuleName $moduleName author $theAuthor
+						# some additional info (orig_labelfield/orig_bundleindex is needed in order to find shape parameters later too from the newly created voxelfield \
+						  -> a labelfield is needed for ShapeAnalysis ...): 	
+						$this stampField $theResultFromArithmeticCalcName ModuleInfo ModuleName 		$moduleName \
+																					 author				$theAuthor  \
+																					 orig_labelfield	$labelfield \
+																					 orig_bundleindex	$i
 						
 						# append extracted voxel field to global lists:
 						lappend theCompleteExtractedList $theResultFromArithmeticCalcName;
@@ -525,12 +528,9 @@ $this proc compute {} {
 						if { [$this $theLabSetFromLabSetList getValue $i] == 1 && [lindex $labOKFlagList $labfieldCount] == 1} {
 							
 							# the shape analysis:
-							array set valFromSprdsht [$this makeShapeAnalysis $labelfield $shapeAnalysisModul $voxelOptionMassIsChecked];
+							array set valFromSprdsht [$this makeShapeAnalysis $labelfield $shapeAnalysisModul [$this voxelOptionMassIsChecked]]
 							
-							set theItemToTransform [lindex $theArithmeticExtractedVoxelList $xCount];# get the needed item from list with xCount
-
-							echo "[$theItemToTransform getTransform -d]"
-												
+							set theItemToTransform [lindex $theArithmeticExtractedVoxelList $xCount];# get the needed item from list with xCount												
 							
 							#all vector components (easier to read instead of getting them every time from array with lindex ...):
 							set evec1x [lindex $valFromSprdsht($i,evector1) 0]
@@ -541,7 +541,8 @@ $this proc compute {} {
 							set evec2z [lindex $valFromSprdsht($i,evector2) 2]
 							# the next if checks if the coordinate system of the shape eigenvectors is right-handed. When left-handed then the system gets mirrored (evec1-evec2 plane) \
 							  this check is neccesary, because the eigenvector coordinate system can be right-handed or left-handed \
-							  and when not corrected for this the rotations at the origin can produce different results (consecutive rotations have different outcomes for different initial states for asymmetrical objects).
+							  and when not corrected for this the rotations at the origin can produce different results \
+							  (consecutive rotations have different outcomes for different initial states for asymmetrical objects).
 							set crPrd23 [crossproduct $valFromSprdsht($i,evector2) $valFromSprdsht($i,evector3)];#cross product of eigenvector 2 and 3
 							if { 
 								 [lindex $crPrd23 0] < 0 && $evec1x >= 0 || \
@@ -587,33 +588,33 @@ $this proc compute {} {
 							  (axes specified are for the biggest and second biggest moment of inertia - \
 							  works like in Amira´s AlignPrincipalAxes module) \
 							  to keep track of the axis of the eigenvectors they will also be changed with every rotation
-							if { $voxelOptionAxis1WhichIsChecked == 0 && $voxelOptionAxis2WhichIsChecked == 2 } then {
+							if { [$this voxelOptionAxis1WhichIsChecked] == 0 && [$this voxelOptionAxis2WhichIsChecked] == 2 } then {
 								$theItemToTransform rotate -wx 90
 								set virtualEvec1 "-wy"
 								set virtualEvec2 "-wz"
 								set virtualEvec3 "-wx"
 							}
-							if { $voxelOptionAxis1WhichIsChecked == 1 && $voxelOptionAxis2WhichIsChecked == 0 } then {
+							if { [$this voxelOptionAxis1WhichIsChecked] == 1 && [$this voxelOptionAxis2WhichIsChecked] == 0 } then {
 								$theItemToTransform rotate -wz 90
 								set virtualEvec1 "-wz"
 								set virtualEvec2 "-wx"
 								set virtualEvec3 "-wy"
 							}
-							if { $voxelOptionAxis1WhichIsChecked == 1 && $voxelOptionAxis2WhichIsChecked == 2 } then {
+							if { [$this voxelOptionAxis1WhichIsChecked] == 1 && [$this voxelOptionAxis2WhichIsChecked] == 2 } then {
 								$theItemToTransform rotate -wy 90
 								$theItemToTransform rotate -wx 90
 								set virtualEvec1 "-wx"
 								set virtualEvec2 "-wz"
 								set virtualEvec3 "-wy"
 							}
-							if { $voxelOptionAxis1WhichIsChecked == 2 && $voxelOptionAxis2WhichIsChecked == 0 } then {
+							if { [$this voxelOptionAxis1WhichIsChecked] == 2 && [$this voxelOptionAxis2WhichIsChecked] == 0 } then {
 								$theItemToTransform rotate -wy 90
 								$theItemToTransform rotate -wz 90
 								set virtualEvec1 "-wy"
 								set virtualEvec2 "-wx"
 								set virtualEvec3 "-wz"
 							}
-							if { $voxelOptionAxis1WhichIsChecked == 2 && $voxelOptionAxis2WhichIsChecked == 1 } then {
+							if { [$this voxelOptionAxis1WhichIsChecked] == 2 && [$this voxelOptionAxis2WhichIsChecked] == 1 } then {
 								$theItemToTransform rotate -wy 90
 								set virtualEvec1 "-wx"
 								set virtualEvec2 "-wy"
