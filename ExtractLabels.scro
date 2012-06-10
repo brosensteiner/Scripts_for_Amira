@@ -1,5 +1,11 @@
 # Amira-Script-Object V3.0
 
+#Amira version check:
+set amira_version [string map {Amira "" . "" " " ""} [app version]]
+if { $amira_version < 540 } then {
+	theMsg warning "!!! your amira version is [app version], but you need at least 5.3 to use this module !!!"
+}
+
 source "[file dirname [info script]]/amira_procs.tcl";#relative path to amira_procs.tcl
 
 # some packages:
@@ -26,7 +32,7 @@ set virtualEvec1					"-wx"
 set virtualEvec2					"-wy"
 set virtualEvec3					"-wz"
 set theExtractedSurfacesList		[list];# keeps track of surfaces of the current run
-set theArithmeticExtractedVoxelList	[list];# keeps track of all extracted surfaces from arithmetic runs
+set theArithmeticExtractedVoxelList	[list];# keeps track of all extracted surfaces from arithmetic runs (gets deleted every run)
 set theMenuEntryInRotationPort		"all";#default is "all" for rotation port
 set theResampledExtractedVoxelList	[list];# keeps track of all extracted surfaces from resample z runs
 set theAdditionalDataList			[list];#keeps track of additional data that $this produces (e.g. spreadsheet objects)
@@ -323,7 +329,7 @@ $this proc compute {} {
 	}
 	if { $voxelOptionAlignPrincipalAxisIsChecked && $voxelOptionConnectVolrenIsChecked } then { $this colormap show } else { $this colormap hide }
 	
-	# the next "if" is neccesary because i don´t get the interactive mapping of ports in amira to work (at least with colormap ports),\
+	# the next "if" is neccesary because i don´t get the interactive mapping of ports in amira to work with the "connect" command (at least with colormap ports),\
 	  so the eventually created volren modules get updated this way when the colormap port of $this will be modified by user:
 	if { [$this colormap isNew] && [llength volRenList] != 0 } then {# when colormap port has changed and there is something in volRenList list
 	
@@ -444,7 +450,9 @@ $this proc compute {} {
 						#some additional info: 	
 						$this stampField $newExtractedSurface ModuleInfo ModuleName $moduleName author $theAuthor
 						
+						lappend theCompleteExtractedList $newExtractedSurface
 						lappend theExtractedSurfacesList $newExtractedSurface
+						
 						array unset newExtractedSurfaceParameters
 							
 						$newExtractedSurface master disconnect;# otherwise the newly created surface gets overriden in the next for loop iteration
@@ -460,8 +468,6 @@ $this proc compute {} {
 					}
 				
 				}
-
-				set theCompleteExtractedList [concat $theCompleteExtractedList $theExtractedSurfacesList];# save all generated surfaces in theCompleteExtractedList list
 				
 				$surfaceViewModul buffer setValue 1;# only get rid of the last selection in buffer which would otherwise be visible in the viewer
 				$surfaceViewModul compute
@@ -517,12 +523,12 @@ $this proc compute {} {
 																					 orig_labelfield	$labelfield \
 																					 orig_bundleindex	$i
 						
-						# append extracted voxel field to global lists:
-						lappend theCompleteExtractedList $theResultFromArithmeticCalcName;
-						lappend theArithmeticExtractedVoxelList $theResultFromArithmeticCalcName;
-						
+						# append extracted voxel field to global list:
+						lappend theCompleteExtractedList $theResultFromArithmeticCalcName
+						lappend theArithmeticExtractedVoxelList $theResultFromArithmeticCalcName
 					}
 				}
+				
 				if { $voxelOptionAlignPrincipalAxisIsChecked } {
 									
 					for { set i 0 } {$i < [$this $theLabSetFromLabSetList getNum] } { incr i } {						
@@ -716,6 +722,13 @@ $this proc compute {} {
 		$this resampleOptions1 setSensitivity 1 0
 		$this resampleOptions2 setSensitivity 0 0
 		$this resampleOptions2 setOptSensitivity 0 0
+	}
+	if { $theCompleteExtractedList ne "" } then {
+		
+		$this Utilities setSensitivity 1 1
+	} else {
+	
+		$this Utilities setSensitivity 1 0
 	}
 	
 	# saving routine:		

@@ -448,7 +448,7 @@ $this proc applyTransformation {} {
 	global theCompleteExtractedList
 	
 	foreach item $theCompleteExtractedList {
-		$item applyTransform 
+		if { [$item getTypeId] eq "HxUniformScalarField3" } then { $item applyTransform  };#only HxUniformScalarField3 have a transformation (HxSurface has not)
 	}
 }
 
