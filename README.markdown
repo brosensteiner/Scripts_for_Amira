@@ -27,6 +27,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## Additional Info
 
-When you use one of the Amira script objects in a scientific publication please [send me a message](mailto:brosensteiner@gmail.com) about for what and how it was used -- i´m curious :)
+When you use one of my Amira script objects in a scientific publication please [send me a message](mailto:brosensteiner@gmail.com) about for what and how it was used — i´m curious :)
 
 

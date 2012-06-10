@@ -60,8 +60,7 @@ $this proc translateTo { point pointToTranslateTo } {
 	return $transformList
 }
 
-# procs which rotates a given object(s) on a given axis (axis == world origin to evecPointAxis) \
-  
+# procs which rotates a given object(s) on a given axis (axis == world origin to evecPointAxis)
 $this proc rotateAll { theObjectList evecPointAxis { degrees 180 } } {
 
 	upvar $theObjectList upvList $evecPointAxis upvevecPointAxis
@@ -174,7 +173,7 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 	#makes shure treshold is not out of max value (when treshold is greater than max value it will be set to max value -1):
 	if { $treshhold >= [lindex [$upvItem getRange] 1] } then {
 		set treshhold [expr [lindex [$upvItem getRange] 1] - 1]
-		$this say "treshold you specified is greater than max value in voxel field! Will be set to: [expr [lindex [$upvItem getRange] 1] - 1]"
+		$this say "treshold you specified is greater than max value in voxel field! Will be set to: $treshhold"
 	}
 	
 	workArea startWorking;#a progress indicator makes sense in this slow proc
@@ -310,7 +309,8 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 	workArea stopWorking	
 }
 
-#helper procs to check some values of $this:
+# helper procs to check some values of $this (are needed because some buttons have a "setcmd" and they must be able to \
+  check this states outside the "compute" procedure loop):
 $this proc voxelOptionMassIsChecked {} {
 	set checked [$this voxelOptions getValue 1]
 	return $checked
@@ -345,7 +345,7 @@ $this proc reSlice { objectList } {
 		
 		array set valFromSprdsht [$this makeShapeAnalysis $orig_labelfield $shapeAnalysisModul [$this voxelOptionMassIsChecked]]
 		
-		#adjust the oliqueslice plane according to the axis1 and axis2 settings of $this:
+		#adjust the oliqueslice plane according to the axis1 and axis2 settings of $this (i.e axis1 and axis2 ports determine the direction of u- and v-vector of the plane):
 		if {
 			[$this voxelOptionAxis1WhichIsChecked] == 1 && [$this voxelOptionAxis2WhichIsChecked] == 0 || \
 			[$this voxelOptionAxis1WhichIsChecked] == 0 && [$this voxelOptionAxis2WhichIsChecked] == 1
@@ -377,8 +377,8 @@ $this proc reSlice { objectList } {
 		$obiqueSliceModule compute
 		
 		#set some port values:
-		$applyTransformModule mode setValue 1
-		$applyTransformModule interpolation setValue [$this resampleOptions2 getOptValue 0 1];#set Standard, Lanczos or Nearest Neighbor interpolation method from corresponding $this port
+		$applyTransformModule mode setValue 1;#set mode to extended -> need the result to contain all original voxel information
+		$applyTransformModule interpolation setValue [$this resampleOptions2 getOptValue 0 1];#set Standard, Lanczos or Nearest Neighbor interpolation method from $this port resampleOptions2
 		
 		#apply transformation:
 		$applyTransformModule action setValue 0 1
@@ -440,6 +440,19 @@ $this proc autoConnectToLabelField {} {
 	}
 }
 
+# proc for applying the transformation which $this made -> transformation matrix gets reset, but the object in 3D space stays at its position \
+  this proc is needed, because when one wants to export for example a HxSurface Object in another application for further processing \
+  most of the time the amira transformation matrix is not recognized by this applications (except the app can interpret amiramesh files)
+$this proc applyTransformation {} {
+	
+	global theCompleteExtractedList
+	
+	foreach item $theCompleteExtractedList {
+		$item applyTransform 
+	}
+}
+
+
 # function which checks on some $this states and sets the labels of "label set" ports, so every time something happens with $this \
   it knows it´s actual state and it can be asked about it:
 $this proc checkModuleStateAndSetVariables {} {
@@ -460,7 +473,7 @@ $this proc checkModuleStateAndSetVariables {} {
 	set emptyConPorts 0
 	set labOKFlagList [list]
 	
-	# and then update again the lists/arrays:
+	# and then update again the lists/arrays (the "[expr $i + 1]" connectionport shift takes only the connectionport from the colormap port of $this into account):
 	for { set i 1 } { $i < [expr [llength [$this connectionPorts]] - 1] } { incr i } {
 	
 		if { [$this  [lindex [$this connectionPorts] [expr $i + 1]] source] ne "" } {
@@ -615,9 +628,7 @@ $this proc conPortLogic {} {
 		if { [$this [lindex [$this connectionPorts] end] source] eq "" && $emptyConPorts > 1 } {
 			$this deleteConPortButtonsToggles [expr [llength [$this connectionPorts]] - 2];
 		}
-		
 	}
-
 }
 
 # procedure which creates moduleType and connects it with sourceName module and checks if connection is valid \
@@ -650,7 +661,7 @@ $this proc createModuleAndConnectIfOkToSource { moduleType moduleName sourceName
 
 # switches the given module port remotely from $this ($this must have a corresponding (i.e. same) port!) \
   it works like the amira built in port connect "<modulename 1> <P0 name> connect < modulename 2> [<P1 name>]" exept, \
-  that it works (e.g. there are some bugs with menu entry numeration in amira modules)
+  that it works (e.g. there are some bugletts with menu entry numeration in amira modules)
 $this proc setCorrespondingPort { module port { portIndex 0 } } {
 
 	upvar #0 $module myModule
