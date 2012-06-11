@@ -1,16 +1,16 @@
 # Amira-Script-Object V3.0
 
 #Amira version check:
-set amira_version [string map {Amira "" . "" " " ""} [app version]]
+set amira_version [string map { Amira "" . "" " " "" } [app version]]
 if { $amira_version < 540 } then {
-	theMsg warning "!!! your amira version is [app version], but you need at least 5.3 to use this module !!!"
+	theMsg warning "!!! your amira version is [app version], but you need at least 5.3 to use the complete range of functions of this module !!!"
 }
 
 source "[file dirname [info script]]/amira_procs.tcl";#relative path to amira_procs.tcl
 
 # some packages:
-package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlevel 8.4.19)
-# when loading this package amira searches an annoying amount of time when first loaded to find the package. math::bigfloat is also only compatible with tcl 8.4 with a conversion hack.
+#package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlevel 8.4.19)
+# when loading this package amira searches an annoying amount of time when first loaded to find the package (loop?). math::bigfloat is also only compatible with tcl 8.4 with a conversion hack.
 package require math::bigfloat;
 package require math::linearalgebra;
 package require math::statistics
@@ -20,7 +20,7 @@ namespace import -force \
 						::math::linearalgebra::crossproduct
 						
 
-set moduleName [string map {"\.scro" ""} $this];# the name of the module generated from the script filename
+set moduleName [string map { "\.scro" "" } $this];# the name of the module generated from the script filename
 set theAuthor "Bernhard Rosensteiner"
 
 # definition of global variables:
@@ -31,6 +31,7 @@ $this setVar computeCounter 0
 set virtualEvec1					"-wx"
 set virtualEvec2					"-wy"
 set virtualEvec3					"-wz"
+
 set theExtractedSurfacesList		[list];# keeps track of surfaces of the current run
 set theArithmeticExtractedVoxelList	[list];# keeps track of all extracted surfaces from arithmetic runs (gets deleted every run)
 set theMenuEntryInRotationPort		"all";#default is "all" for rotation port
@@ -75,7 +76,6 @@ $this proc constructor {} {
 
 	# creates options for choosing which result will be produced by $this
 	$this newPortToggleList result 4
-	$this result setLabel "Result"
 	$this result setLabel 0 "overwrite"
 	$this result setLabel 1 "polygon surface"
 	$this result setLabel 2 "voxel data"
@@ -89,7 +89,7 @@ $this proc constructor {} {
 	$this newPortButtonList Utilities 2
 	$this Utilities setLabel 0 "Connect all label fields"
 	$this Utilities setCmd 0 { $this autoConnectToLabelField }
-	$this Utilities setLabel 1 "apply transformation"
+	$this Utilities setLabel 1 "Apply transformation"
 	$this Utilities setCmd 1 { $this applyTransformation }
 	
 	# creates Action Button port
@@ -101,7 +101,6 @@ $this proc constructor {} {
 	# creates smoothing options:
 	$this newPortSeparator smoothingSeparator
 	$this newPortMultiMenu smoothing 3
-	$this smoothing setLabel "Smoothing"
 	$this smoothing setLabel 0 0 "none"
 	$this smoothing setLabel 0 1 "constrained smoothing"
 	$this smoothing setLabel 0 2 "unconstrained smoothing"
@@ -116,7 +115,6 @@ $this proc constructor {} {
 	
 	# recreates the options port from SurfaceGen
 	$this newPortToggleList options 2
-	$this options setLabel "Options"
 	$this options setLabel 0 "add border"
 	$this options setLabel 1 "compactify"
 	

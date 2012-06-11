@@ -1,0 +1,16 @@
+#######################################################
+# Resource file for the the ExtractLabels script object
+#######################################################
+
+module 	-name 		"ExtractLabels" \
+		-primary	"HxUniformLabelField3" \
+		-package	"hxscriptobj" \
+		-category	"myScriptObjects" \
+		-proc {
+			set mod [[create HxScriptObject] setLabel ExtractLabels]
+			$mod script setValue $AMIRA_LOCAL/share/script-objects/ExtractLabels.scro
+			$mod fire
+			$mod labFieldPortCon1 connect $PRIMARY
+			#$mod fire
+		}
+		

@@ -159,7 +159,7 @@ $this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnal
 }
 
 # proc for cropping the extracted voxel fields (will be executed everytime the "Auto Crop" button in the "Resample options1" port is pressed). \
-  this proc is really slow because of the "brutal force" approach of the algorithm (for about 160 x 160 x 160 voxel fields to crop to about 60 x 60 x 60 it takes about 1:20 minutes on intel core 2 duo 2.8Ghz)!!! \
+  this proc is really slow because of the "brutal force" approach of the algorithm (for about 160 x 160 x 160 voxel fields to crop to about 60 x 60 x 60 it takes about 58 seconds on intel core 2 duo 2.8Ghz)!!! \
   some optimization brings the algorithm nevertheless down from 3 minutes to 58 seconds: after every for loop the range in which the nodes of the voxel field are evaluated is newly adjusted, \
   so that no unnecessary iteratons have to be made \
   i think this slowness is the Tcl "scripting tradeoff" - much faster is the "C++ Auto Crop" from Amira´s crop editor

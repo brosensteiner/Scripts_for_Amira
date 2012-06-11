@@ -1,6 +1,7 @@
 # Scripts for Visage Imaging´s Amira
 
-this Amira scipt object collection is the result of a "little" sideproject of my diploma thesis at the Department of Theoretical Biology at the University of Vienna.
+this Amira scipt-object collection is the result of a "little" sideproject of my diploma thesis at the Department of Theoretical Biology at the University of Vienna.
+For convenience there is for every script-object a .rc file for integrating the script-object in the Amira context menu (must be copied in the share/resources folder of $AMIRA\_LOCAL or $AMIRA\_ROOT)
 If someone has suggestions or questions please let me know and [email me](mailto:brosensteiner@gmail.com)
 
 ## Installation
