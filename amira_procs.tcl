@@ -332,6 +332,13 @@ $this proc reSlice { objectList } {
 	
 	foreach object $upvObjectList {
 		
+		#calculating the volume of the original boundingbox:
+		set theBBox [$object getBoundingBox]
+		set bbox_X [expr abs([lindex $theBBox 0] - [lindex $theBBox 1])]
+		set bbox_Y [expr abs([lindex $theBBox 2] - [lindex $theBBox 3])]
+		set bbox_Z [expr abs([lindex $theBBox 4] - [lindex $theBBox 5])]
+		set origVolume [expr $bbox_X * $bbox_Y * $bbox_Z]
+		
 		#make the connections:
 		$this createModuleAndConnectIfOkToSource HxApplyTransform $applyTransformModule $object
 		$this createModuleAndConnectIfOkToSource HxObliqueSlice $obiqueSliceModule $object
@@ -378,7 +385,8 @@ $this proc reSlice { objectList } {
 		
 		#set some port values:
 		$applyTransformModule mode setValue 1;#set mode to extended -> need the result to contain all original voxel information
-		$applyTransformModule interpolation setValue [$this resampleOptions2 getOptValue 0 1];#set Standard, Lanczos or Nearest Neighbor interpolation method from $this port resampleOptions2
+		set resampleOptions2_1 [$this resampleOptions2 getOptValue 0 1]
+		$applyTransformModule interpolation setValue $resampleOptions2_1;#set Standard, Lanczos or Nearest Neighbor interpolation method from $this port resampleOptions2
 		
 		#apply transformation:
 		$applyTransformModule action setValue 0 1
@@ -389,6 +397,18 @@ $this proc reSlice { objectList } {
 		$theResult master disconnect
 		lappend theCompleteExtractedList $theResult
 		lappend theResampledExtractedVoxelList $theResult;#who knows for what i will need it ...
+		
+		#calculating the volume of the new boundingbox:
+#		echo "origVolume: $bbox_X, $bbox_Y, $bbox_Z, $origVolume"
+		set theBBox [$theResult getBoundingBox]
+		set bbox_X [expr abs([lindex $theBBox 0] - [lindex $theBBox 1])]
+		set bbox_Y [expr abs([lindex $theBBox 2] - [lindex $theBBox 3])]
+		set bbox_Z [expr abs([lindex $theBBox 4] - [lindex $theBBox 5])]
+		set newVolume [expr $bbox_X * $bbox_Y * $bbox_Z]
+#		echo "newVolume: $bbox_X, $bbox_Y, $bbox_Z, $newVolume"
+		
+		#pring some stats (like Amiras own applyTransform command):
+		$this say "Resample: interpol=$resampleOptions2_1, new dims=[string map { " " "x" } [$theResult getDims]], volume=[format "%.1f" [expr 100 * $newVolume / $origVolume]]\%"
 	}
 }
 
