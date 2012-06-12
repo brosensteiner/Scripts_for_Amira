@@ -11,6 +11,7 @@ module 	-name 		"ExtractLabels" \
 			$mod script setValue $AMIRA_LOCAL/share/script-objects/ExtractLabels.scro
 			$mod fire
 			$mod labFieldPortCon1 connect $PRIMARY
-			#$mod fire
+			$PRIMARY deselect 
+			$mod compute 
 		}
 		

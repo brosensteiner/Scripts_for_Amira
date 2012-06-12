@@ -7,7 +7,7 @@ Under some circumstances the .rc file has to be adapted at the hosts environment
 - if you have no local amira directory ($AMIRA\_LOCAL) and want to copy the .rc file in amira´s root directory, then change the $AMIRA\_LOCAL variable to $AMIRA\_ROOT
 - if you don´t like the name of the menu entry change the argument of the "name" switch in the .rc file
 - if you don´t like the submenu entry change the argument of the "category" switch in the .rc file
-- The script-object (.scro) file must be copied to /share/script-objects in $AMIRA\_LOCAL variable to $AMIRA\_ROOT
+- The script-object (.scro) file must be copied to [$AMIRA\_LOCAL|$AMIRA\_ROOT]/share/script-objects
 
 If someone has suggestions or questions please let me know and [email me](mailto:brosensteiner@gmail.com)
 

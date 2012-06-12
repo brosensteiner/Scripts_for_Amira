@@ -180,28 +180,28 @@ $this proc destructor {} {
 	global labSetList emptyConPorts allEmptyConPorts
 
 	# removes the modules which the script eventually created when $this gets deleted:
-	if { [lsearch [all] $surfaceGenModul] != -1 }		{ remove [$surfaceGenModul getResult]; remove $surfaceGenModul }
-	if { [lsearch [all] $surfaceViewModul] != -1 }		{ remove $surfaceViewModul }
-	if { [lsearch [all] $extractSurfaceModul] != -1 }	{ remove $extractSurfaceModul }
-	if { [lsearch [all] $arythmeticModul] != -1 }		{ remove $arythmeticModul }
-	if { [lsearch [all] $shapeAnalysisModul] != -1 }	{ remove $shapeAnalysisModul }
-	if { [lsearch [all] $applyTransformModule] != -1 }	{ remove $applyTransformModule }
-	if { [lsearch [all] $obiqueSliceModule] != -1 }		{ remove $obiqueSliceModule }	
-	set hideNewModules 0
+	if { [lsearch [all] $surfaceGenModul]		!= -1 }		{ remove [$surfaceGenModul getResult]; remove $surfaceGenModul }
+	if { [lsearch [all] $surfaceViewModul]		!= -1 }		{ remove $surfaceViewModul }
+	if { [lsearch [all] $extractSurfaceModul]	!= -1 }		{ remove $extractSurfaceModul }
+	if { [lsearch [all] $arythmeticModul]		!= -1 }		{ remove $arythmeticModul }
+	if { [lsearch [all] $shapeAnalysisModul]	!= -1 }		{ remove $shapeAnalysisModul }
+	if { [lsearch [all] $applyTransformModule]	!= -1 }		{ remove $applyTransformModule }
+	if { [lsearch [all] $obiqueSliceModule]		!= -1 }		{ remove $obiqueSliceModule }	
 	
 }
 
 $this proc savePreparation { args } {
 	
 	global allConnectedLabFields emptyConPorts
-	# saves a counter which holds how many gui labset´s should be created after loading a network file again,
+		
+	# saves a counter which holds how many gui labset´s should be dynamically created after loading a network file again,
 	# when $this is saved with a network file:
 	$this setVar savedLabels [expr [llength $allConnectedLabFields] + $emptyConPorts]
 	
 }
 
 $this proc compute {} {
-
+	
 	$this testBreak;# for safety...
 	
 	global moduleName theAuthor
@@ -213,7 +213,7 @@ $this proc compute {} {
 
 	global allConnectedLabFields labCountList labOKFlagList
 	global lastLabSetArray labSetList
-
+	
 	# some status checks on toogle bottons:
 	set overwriteToggleIsChecked		[$this result getValue 0]
 	set polygonSurfaceToggleIsChecked	[$this result getValue 1]

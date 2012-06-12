@@ -498,9 +498,14 @@ $this proc checkModuleStateAndSetVariables {} {
 	
 		if { [$this  [lindex [$this connectionPorts] [expr $i + 1]] source] ne "" } {
 			
-			if { [[$this  [lindex [$this connectionPorts] [expr $i + 1]] source] getControllingData] eq "" } {# test if label field has a image data field attached (e.g. needed for arithmetic calculations)
-				$this say "warning! [$this  [lindex [$this connectionPorts] [expr $i + 1]] source] has no image data field connected,\nfor processing of \"[$this result getLabel 2]\" and \"[$this result getLabel 2]\" results this is required"
+			if { [$this [lindex [$this connectionPorts] [expr $i + 1]] isNew] && \
+				 [[$this [lindex [$this connectionPorts] [expr $i + 1]] source] getControllingData] eq ""
+			   } {# test if label field has a image data field attached (e.g. needed for arithmetic calculations)
+			   
+				theMsg warning "warning! [$this [lindex [$this connectionPorts] [expr $i + 1]] source] has no image data field connected,\nfor processing of \"[$this result getLabel 2]\" and \"[$this result getLabel 2]\" results this is required"
+				$this [lindex [$this connectionPorts] [expr $i + 1]] untouch;#don´t know why connection port gets touched, so here is untouch that the warning window is only once not twice shown
 				lappend labOKFlagList 0
+				
 			} else { lappend labOKFlagList 1 }
 			
 			lappend allConnectedLabFields [$this [lindex [$this connectionPorts] [expr $i + 1]] source]
