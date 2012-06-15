@@ -13,7 +13,6 @@ $this proc stampField { field theBundle args } {
 	foreach { par val } $args {
 		eval "$field parameters $theBundle setValue $par $val"
 	}
-
 }
 # clear items in a specified Bundle in a amira field (saves some typing):
 $this proc clearBundle { field args } {
@@ -30,7 +29,6 @@ $this proc clearBundle { field args } {
 		eval "$field $restElements parameters $lastElement $item setFlag NO_DELETE 0"
 		eval "$field $restElements parameters $lastElement remove $item"
 	}
-	
 }
 
 # simple port test: procedure returns 1 when module has port, otherwise it returns 0
@@ -144,6 +142,7 @@ $this proc extractFromSpreadsheet { spreadObj } {
   this proc uses the ShapeAnalysis module to obtain the shape parameters. If the mass (voxel grey values) should be included in the shape parameter calculation the optional value "massCalc" must be 1
 $this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnalysisModule" } { massCalc 0 } } {
 	
+	global theAdditionalDataList
 	# the shape analysis:
 	$this createModuleAndConnectIfOkToSource HxShapeAnalysis $shapeAnalysisModul $labelfield;#$shapeAnalysisModul is global!!! so it has to be deleted in the destructor proc, otherwise it remains in the pool (it´s global because then it has not every time be generated anew for every call of "makeShapeAnalysis" and stays in the pool)
 	if { $massCalc } then { $shapeAnalysisModul Field connect [$labelfield getControllingData] }
@@ -153,7 +152,8 @@ $this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnal
 	set theResultFromShapeAnalysis [$shapeAnalysisModul getResult]
 	array set extrValFromSprdsht [$this extractFromSpreadsheet $theResultFromShapeAnalysis]
 	$theResultFromShapeAnalysis master disconnect 
-	remove $theResultFromShapeAnalysis
+	lappend theAdditionalDataList $theResultFromShapeAnalysis
+	#remove $theResultFromShapeAnalysis
 	return [array get extrValFromSprdsht]
 	
 }
@@ -577,7 +577,7 @@ $this proc bottonNonePressed { num } {
 		$this labSet$num setValue $i 0
 	}
  	$this checkModuleStateAndSetVariables
- 			
+ 		
 }
 # procedure which will be executed when a "All" button is pressed
 $this proc bottonAllPressed { num } {
@@ -659,29 +659,26 @@ $this proc conPortLogic {} {
 # procedure which creates moduleType and connects it with sourceName module and checks if connection is valid \
   moduleName is the name of the module in the pool \
   if moduleName module does not exist it also gets created in the pool \
-  function returns the name string of the newly created module
+  function returns the name of the newly created module
 $this proc createModuleAndConnectIfOkToSource { moduleType moduleName sourceName { conPortIndex 0 } } {
 	
-	if { [lsearch [all $moduleType] $moduleName] == -1 } {# test if module is already in the pool -1 := not in pool
-	
-		 	set returnedModule [create $moduleType $moduleName]
-		 	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex];# sets the desired connectionPort name, default is 0
-		 	if { [$moduleName $theConnectionPort validSource $sourceName] == 1 } {
-		 		if { [$moduleName $theConnectionPort source] ne $sourceName } { $moduleName $theConnectionPort connect $sourceName };
-		 	} else { $this say "$sourceName is no valid source for $moduleName" }
-		 	
-		 } else {
-		 	
-		 	set returnedModule $moduleName
-		 	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex]
-		 	if { [$moduleName $theConnectionPort validSource $sourceName] == 1 } {
-		 		if { [$moduleName $theConnectionPort source] ne $sourceName } { $moduleName $theConnectionPort connect $sourceName };
-		 	} else { $this say "$sourceName is no valid source for $moduleName" }
-		 	
+	# test if module is already in the pool and assigne the moduleToReturn variable as appropriate:
+	if { [lsearch [all $moduleType] $moduleName] == -1 } {
+		 set moduleToReturn [create $moduleType $moduleName]
+	} else {
+		 set moduleToReturn $moduleName
 	}
+	# sets the desired connectionPort name, default is 0:
+	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex]
+	# connect or echo error in console:
+	if {
+		[$moduleName $theConnectionPort validSource $sourceName] && \
+		[$moduleName $theConnectionPort source] ne $sourceName
+	} {
+		$moduleName $theConnectionPort connect $sourceName
+	} else { $this say "$sourceName is no valid source for $moduleName" }
 	
-	return $returnedModule
-	
+	return $moduleToReturn
 }
 
 # switches the given module port remotely from $this ($this must have a corresponding (i.e. same) port!) \
@@ -704,5 +701,4 @@ $this proc setCorrespondingPort { module port { portIndex 0 } } {
 	};# setValueString is more robust than index counting with setValue
 	
 	$myModule compute
-
 }

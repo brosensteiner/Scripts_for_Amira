@@ -194,7 +194,7 @@ $this proc savePreparation { args } {
 	
 	global allConnectedLabFields emptyConPorts
 		
-	# saves a counter which holds how many gui labset´s should be dynamically created after loading a network file again,
+	# saves a counter which holds how many gui labset´s should be created after loading a network file again,
 	# when $this is saved with a network file:
 	$this setVar savedLabels [expr [llength $allConnectedLabFields] + $emptyConPorts]
 	
@@ -210,10 +210,10 @@ $this proc compute {} {
 	global virtualEvec1 virtualEvec2 virtualEvec3 theMenuEntryInRotationPort
 	global alignPrincipalAxesModul arythmeticModul
 	global userLabListSelState userSaveState
-
+	
 	global allConnectedLabFields labCountList labOKFlagList
 	global lastLabSetArray labSetList
-	
+
 	# some status checks on toogle bottons:
 	set overwriteToggleIsChecked		[$this result getValue 0]
 	set polygonSurfaceToggleIsChecked	[$this result getValue 1]
@@ -741,9 +741,15 @@ $this proc compute {} {
 					HxSurface { $result save "HxSurface binary" $userSaveState/$result }
 				}
 			}
+			foreach result $theAdditionalDataList {# saving the result from shape analysis
+				
+				switch -exact [$result getTypeId] {
+					HxSpreadSheet { $result save "CSV" $userSaveState/$result }
+				}
+			}
 			
 		} else {
-			$this say "whatever you typed in the \"[$this saveResults getLabel]\" field ... , it is not a valid directory name, so nothing has been saved"
+			$this say "whatever you typed in the \"[$this saveResults getLabel]\" field ... , it is not a valid directory name, so nothing has been saved!"
 		}
 		
 	}
