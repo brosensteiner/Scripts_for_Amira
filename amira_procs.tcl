@@ -162,7 +162,7 @@ $this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnal
   this proc is really slow because of the "brutal force" approach of the algorithm (for about 160 x 160 x 160 voxel fields to crop to about 60 x 60 x 60 it takes about 58 seconds on intel core 2 duo 2.8Ghz)!!! \
   some optimization brings the algorithm nevertheless down from 3 minutes to 58 seconds: after every for loop the range in which the nodes of the voxel field are evaluated is newly adjusted, \
   so that no unnecessary iteratons have to be made \
-  i think this slowness is the Tcl "scripting tradeoff" - much faster is the "C++ Auto Crop" from Amira´s crop editor
+  i think this slowness is the Tcl "scripting tradeoff" - much faster is the "C++ Auto Crop" from Amira´s crop editor (when one wants this native amira crop then override this autoCrop with something like: [object getEditor]... )
 $this proc autoCrop { item { treshhold 0.000000 } } {
 
 	upvar $item upvItem
@@ -407,7 +407,7 @@ $this proc reSlice { objectList } {
 		set newVolume [expr $bbox_X * $bbox_Y * $bbox_Z]
 #		echo "newVolume: $bbox_X, $bbox_Y, $bbox_Z, $newVolume"
 		
-		#pring some stats (like Amiras own applyTransform command):
+		#print some stats (like Amira´s own applyTransform command):
 		$this say "Resample: interpol=$resampleOptions2_1, new dims=[string map { " " "x" } [$theResult getDims]], volume=[format "%.1f" [expr 100 * $newVolume / $origVolume]]\%"
 	}
 }
@@ -545,7 +545,7 @@ $this proc checkModuleStateAndSetVariables {} {
 	# this loop sets the labels for each dynamic toggle in labSet ports:
 	for { set x 1 } { $x < [expr [llength [$this connectionPorts]] - 1] } { incr x } {
 	
-		if { [$this labFieldPortCon$x isNew] == 1 && [$this labFieldPortCon$x source] ne ""  } {#set the labels only new when connection port is new - reduces overhead
+		if { [$this labFieldPortCon$x isNew] == 1 && [$this labFieldPortCon$x source] ne "" } {#set the labels only new when connection port is new - reduces overhead
 					
 			$this labSet$x setNum [[$this labFieldPortCon$x source] parameters Materials nBundles];# get the number of material from the source and set number of toogles
 			for { set y 0 } { $y < [$this labSet$x getNum] } { incr y } {
@@ -676,7 +676,7 @@ $this proc createModuleAndConnectIfOkToSource { moduleType moduleName sourceName
 		[$moduleName $theConnectionPort source] ne $sourceName
 	} {
 		$moduleName $theConnectionPort connect $sourceName
-	} else { $this say "$sourceName is no valid source for $moduleName" }
+	} #else { $this say "$sourceName is no valid source for $moduleName or is already connected to $moduleName" }
 	
 	return $moduleToReturn
 }

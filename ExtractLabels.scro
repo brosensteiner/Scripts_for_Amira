@@ -3,31 +3,31 @@
 #Amira version check:
 set amira_version [string map { Amira "" . "" " " "" } [app version]]
 if { $amira_version < 540 } then {
-	theMsg warning "!!! your amira version is [app version], but you need at least 5.3 to use the complete range of functions of this module !!!"
+	theMsg warning "!!! your amira version is [app version], but you need at least 5.3 to use the complete range of functions from this module!!!"
 }
 
 source "[file dirname [info script]]/amira_procs.tcl";#relative path to amira_procs.tcl
 
 # some packages:
-#package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlevel 8.4.19)
+# package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlevel 8.4.19)
 # when loading this package amira searches an annoying amount of time when first loaded to find the package (loop?). math::bigfloat is also only compatible with tcl 8.4 with a conversion hack.
-package require math::bigfloat;
-package require math::linearalgebra;
+package require math::bigfloat
+package require math::linearalgebra
 package require math::statistics
 
 namespace import -force \
 						::math::linearalgebra::mkVector \
 						::math::linearalgebra::crossproduct
-						
 
+# global variable definition (sorry no namespaces - when $this gets deleted there is a variable cleanup, \
+  so this global variables will only be visible to Amira´s tcl shell as long as $this exists)
 set moduleName [string map { "\.scro" "" } $this];# the name of the module generated from the script filename
 set theAuthor "Bernhard Rosensteiner"
 
-# definition of global variables:
 $this setVar runCounter 0
 $this setVar computeCounter 0
 
-#global axes specification for rotating objects around world center (see rotation port implemenation):
+#global axes specification for rotating objects around world center (see rotation port implementation):
 set virtualEvec1					"-wx"
 set virtualEvec2					"-wy"
 set virtualEvec3					"-wz"
@@ -174,20 +174,56 @@ $this proc constructor {} {
 
 $this proc destructor {} {
 	
-	global surfaceGenModul arythmeticModul shapeAnalysisModul applyTransformModule obiqueSliceModule
+	global surfaceGenModul arythmeticModul shapeAnalysisModul applyTransformModule obiqueSliceModule alignPrincipalAxesModul
 	global surfaceViewModul extractSurfaceModul
-	global userLabListSelState lastLabSetArray allConnectedLabFields labCountList labOKFlagList
-	global labSetList emptyConPorts allEmptyConPorts
+	global allConnectedLabFields labCountList labOKFlagList theAdditionalDataList
+	global labSetList emptyConPorts allEmptyConPorts theAuthor moduleName theArithmeticExtractedVoxelList theExtractedSurfacesList theCompleteExtractedList theResampledExtractedVoxelList volRenList
+	global userLabListSelState userResultSelState userSaveState virtualEvec1 virtualEvec2 virtualEvec3 theMenuEntryInRotationPort lastLabSetArray
 
-	# removes the modules which the script eventually created when $this gets deleted:
+	# removes the modules from pool which the script eventually created:
 	if { [lsearch [all] $surfaceGenModul]		!= -1 }		{ remove [$surfaceGenModul getResult]; remove $surfaceGenModul }
 	if { [lsearch [all] $surfaceViewModul]		!= -1 }		{ remove $surfaceViewModul }
 	if { [lsearch [all] $extractSurfaceModul]	!= -1 }		{ remove $extractSurfaceModul }
 	if { [lsearch [all] $arythmeticModul]		!= -1 }		{ remove $arythmeticModul }
 	if { [lsearch [all] $shapeAnalysisModul]	!= -1 }		{ remove $shapeAnalysisModul }
 	if { [lsearch [all] $applyTransformModule]	!= -1 }		{ remove $applyTransformModule }
-	if { [lsearch [all] $obiqueSliceModule]		!= -1 }		{ remove $obiqueSliceModule }	
+	if { [lsearch [all] $obiqueSliceModule]		!= -1 }		{ remove $obiqueSliceModule }
 	
+	# cleanup the global namespace (i think it´s safer to check every variable individually):
+	if { [info exists surfaceGenModul] }					{ unset surfaceGenModul }
+	if { [info exists surfaceViewModul] }					{ unset surfaceViewModul }
+	if { [info exists shapeAnalysisModul] }					{ unset shapeAnalysisModul }
+	if { [info exists applyTransformModule] }				{ unset applyTransformModule }
+	if { [info exists alignPrincipalAxesModul] }			{ unset alignPrincipalAxesModul }
+	if { [info exists extractSurfaceModul] }				{ unset extractSurfaceModul }
+	if { [info exists obiqueSliceModule] }					{ unset obiqueSliceModule }
+	if { [info exists arythmeticModul] }					{ unset arythmeticModul }
+	
+	if { [info exists theCompleteExtractedList] }			{ unset theCompleteExtractedList }
+	if { [info exists labCountList] }						{ unset labCountList }
+	if { [info exists theResampledExtractedVoxelList] }		{ unset theResampledExtractedVoxelList }
+	if { [info exists theArithmeticExtractedVoxelList] }	{ unset theArithmeticExtractedVoxelList }
+	if { [info exists volRenList] }							{ unset volRenList }
+	if { [info exists labSetList] }							{ unset labSetList }
+	if { [info exists theAdditionalDataList] }				{ unset theAdditionalDataList }
+	if { [info exists theExtractedSurfacesList] }			{ unset theExtractedSurfacesList }
+	if { [info exists allConnectedLabFields] }				{ unset allConnectedLabFields }
+	
+	if { [info exists virtualEvec1] }						{ unset virtualEvec1 }
+	if { [info exists virtualEvec2] }						{ unset virtualEvec2 }
+	if { [info exists virtualEvec3] }						{ unset virtualEvec3 }
+	
+	if { [info exists theAuthor] }							{ unset theAuthor }
+	if { [info exists moduleName] }							{ unset moduleName }
+	if { [info exists userSaveState] }						{ unset userSaveState }
+	if { [info exists userResultSelState] }					{ unset userResultSelState }
+	if { [info exists labOKFlagList] }						{ unset labOKFlagList }
+	if { [info exists allEmptyConPorts] }					{ unset allEmptyConPorts }
+	if { [info exists emptyConPorts] }						{ unset emptyConPorts }
+	if { [info exists theMenuEntryInRotationPort] }			{ unset theMenuEntryInRotationPort }
+	
+	if { [array exists lastLabSetArray] }					{ array unset lastLabSetArray }
+	if { [array exists userLabListSelState] }				{ array unset userLabListSelState }
 }
 
 $this proc savePreparation { args } {
@@ -497,7 +533,7 @@ $this proc compute {} {
 				
 				$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$labelfield getControllingData];# connect a Arithmetic module to the voxelfield which connects to the labelfield
 				$arythmeticModul inputB connect $labelfield;# connect inputB of Arithmetic module to the labelfield
-			
+				
 				set theLabSetFromLabSetList [lindex $labSetList $labfieldCount];# the needed labSet port (e.g. labSet1, labSet2 ...)
 				
 				for { set i 0 } {$i < [$this $theLabSetFromLabSetList getNum] } { incr i } {
@@ -635,6 +671,7 @@ $this proc compute {} {
 				incr labfieldCount
 				
 				if { $theArithmeticExtractedVoxelList ne [list] } then {#make the rotation buttons sensitiv when voxels have been extracted
+				
 					$this rotation setSensitivity 0 1
 					$this rotation setSensitivity 1 1
 					$this rotation setSensitivity 2 1
@@ -650,28 +687,28 @@ $this proc compute {} {
 					unset count
 										
 				} else {
+				
 					$this rotation setSensitivity 0 0
 					$this rotation setSensitivity 1 0
 					$this rotation setSensitivity 2 0
 					$this rotation setOptSensitivity 0 0
 					$this rotation setOptValueString "all" 
 				}
-								
 			}
 			
 			
 			if { $voxelOptionConnectVolrenIsChecked } then {
 				
 				foreach item $theArithmeticExtractedVoxelList {
-					set aNewVolrenModule [create HxVolren]
-					lappend volRenList $aNewVolrenModule
-					$aNewVolrenModule data connect $item
+					set aVolrenModule [create HxVolren]
+					lappend volRenList $aVolrenModule
+					$aVolrenModule data connect $item
 
-					$aNewVolrenModule color0 allowEditing 1
-					#$aNewVolrenModule color0 connect $this colormap;#WHY IS IT NOT POSSIBLE TO DO THIS?, ACCORDING TO AMIRA DOCU IT SHOULD!!! -> always error
-					$aNewVolrenModule color0 setState [$this colormap getState]
+					$aVolrenModule color0 allowEditing 1
+					#$aVolrenModule color0 connect $this colormap;#WHY IS IT NOT POSSIBLE TO DO THIS?, ACCORDING TO AMIRA DOCU IT SHOULD!!! -> always error
+					$aVolrenModule color0 setState [$this colormap getState]
 						
-					$aNewVolrenModule fire
+					$aVolrenModule fire
 				}
 			}
 			unset xCount labfieldCount
@@ -741,7 +778,7 @@ $this proc compute {} {
 					HxSurface { $result save "HxSurface binary" $userSaveState/$result }
 				}
 			}
-			foreach result $theAdditionalDataList {# saving the result from shape analysis
+			foreach result $theAdditionalDataList {# saving the result from shape analysis (i.e spreadsheets)
 				
 				switch -exact [$result getTypeId] {
 					HxSpreadSheet { $result save "CSV" $userSaveState/$result }
