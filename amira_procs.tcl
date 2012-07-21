@@ -14,7 +14,8 @@ $this proc stampField { field theBundle args } {
 		eval "$field parameters $theBundle setValue $par $val"
 	}
 }
-# clear items in a specified Bundle in a amira field (saves some typing):
+# clear items in a specified Bundle in a amira field (saves some typing): \
+  "args" is the "path" to a nested bundle
 $this proc clearBundle { field args } {
 
 	if { [llength $args] > 1 } {
@@ -676,7 +677,7 @@ $this proc createModuleAndConnectIfOkToSource { moduleType moduleName sourceName
 		[$moduleName $theConnectionPort source] ne $sourceName
 	} {
 		$moduleName $theConnectionPort connect $sourceName
-	} #else { $this say "$sourceName is no valid source for $moduleName or is already connected to $moduleName" }
+	}
 	
 	return $moduleToReturn
 }

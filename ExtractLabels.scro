@@ -471,16 +471,18 @@ $this proc compute {} {
 						array set newExtractedSurfaceParameters [$this makeArrayFromAmiraParameters $newExtractedSurface];# get the original values from the parameter list
 						#echo "***[array get newExtractedSurfaceParameters]"
 						
+						#seemed a good idea at first to transcribe the old parameter editor values in the newly generated surface, but makes the new file corrupt without saving and is actually not neccesary, because extracted surfaces (3D-meshes) only need one patch.
+						
 						# clearing the old parameters:
-						$this clearBundle $newExtractedSurface Materials
-						eval "$newExtractedSurface parameters Materials newBundle $theLabel"
-						$newExtractedSurface setDefaultFileFormat "HxSurface ascii" 
+#						$this clearBundle $newExtractedSurface Materials
+#						eval "$newExtractedSurface parameters Materials newBundle $theLabel"
+						 
 						# adopting the values for the respective label:
-						foreach item { Color Transparency id } {
-							if { [info exists newExtractedSurfaceParameters(Materials,$theLabel,$item)] } {
-								eval "$newExtractedSurface parameters Materials $theLabel setValue $newExtractedSurfaceParameters(Materials,$theLabel,$item)"
-							}
-						}
+#						foreach item { Color Transparency id } {
+#							if { [info exists newExtractedSurfaceParameters(Materials,$theLabel,$item)] } {
+#								eval "$newExtractedSurface parameters Materials $theLabel setValue $newExtractedSurfaceParameters(Materials,$theLabel,$item)"
+#							}
+#						}
 						#some additional info: 	
 						$this stampField $newExtractedSurface ModuleInfo ModuleName $moduleName author $theAuthor
 						
@@ -490,11 +492,12 @@ $this proc compute {} {
 						array unset newExtractedSurfaceParameters
 							
 						$newExtractedSurface master disconnect;# otherwise the newly created surface gets overriden in the next for loop iteration
-						$newExtractedSurface cleanup
-						$newExtractedSurface fixOrientation;# helps maybe
-						#$newExtractedSurface makeOnePatch;# when not made the $newExtractedSurface is corrupt when not saved and openend again,\
+						$newExtractedSurface makeOnePatch;# when not made the $newExtractedSurface is corrupt when not saved and openend again,\
 						(i.e attaching a SurfaceView module crashes Amira) has propably something to do with changing values in the parameter list ... 
+						$newExtractedSurface fixOrientation;
+						$newExtractedSurface cleanup
 						$newExtractedSurface recompute
+						$newExtractedSurface setDefaultFileFormat "HxSurface ascii"
 						$newExtractedSurface compute
 						$surfaceViewModul buffer setValue 2;# remove from buffer (hit remove button)
 						$surfaceViewModul compute
