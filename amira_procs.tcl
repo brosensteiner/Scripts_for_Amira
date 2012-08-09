@@ -469,8 +469,10 @@ $this proc applyTransformation {} {
 	global theCompleteExtractedList
 	
 	foreach item $theCompleteExtractedList {
-		if { [$item getTypeId] eq "HxUniformScalarField3" } then { $item applyTransform  };#only HxUniformScalarField3 have a transformation (HxSurface has not)
+		$item applyTransform
 	}
+	$this say "transformaton applied to the following items:"
+	$this say $theCompleteExtractedList
 }
 
 
@@ -665,9 +667,11 @@ $this proc createModuleAndConnectIfOkToSource { moduleType moduleName sourceName
 	
 	# test if module is already in the pool and assigne the moduleToReturn variable as appropriate:
 	if { [lsearch [all $moduleType] $moduleName] == -1 } {
-		 set moduleToReturn [create $moduleType $moduleName]
+		set hideNewModules 1;#why does this not work!!!
+		set moduleToReturn [create $moduleType $moduleName]
+		$moduleToReturn hideIcon;#hiding like this is also possible :)
 	} else {
-		 set moduleToReturn $moduleName
+		set moduleToReturn $moduleName
 	}
 	# sets the desired connectionPort name, default is 0:
 	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex]

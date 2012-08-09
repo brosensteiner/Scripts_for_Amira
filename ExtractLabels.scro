@@ -72,7 +72,7 @@ $this proc constructor {} {
 	# $this setNoSave 1;# $this can now correctly be saved with the network, so no need for this ...
 
 	$this select;# $this should be selected after loading
-	$this script show;# will be commented out when $this is finished, only handy for debbuging
+	$this script hide;# will be commented out when $this is finished, only handy for debbuging
 
 	# creates options for choosing which result will be produced by $this
 	$this newPortToggleList result 4
@@ -778,7 +778,7 @@ $this proc compute {} {
 				
 				switch -exact [$result getTypeId] {
 					HxUniformScalarField3 { $result save "Amiramesh ascii" $userSaveState/$result }
-					HxSurface { $result save "HxSurface binary" $userSaveState/$result }
+					HxSurface { $result save "HxSurface ascii" $userSaveState/$result }
 				}
 			}
 			foreach result $theAdditionalDataList {# saving the result from shape analysis (i.e spreadsheets)
