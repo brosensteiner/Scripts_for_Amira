@@ -468,6 +468,7 @@ $this proc applyTransformation {} {
 	
 	global theCompleteExtractedList
 	
+	$this checkModuleStateAndSetVariables;#better check here also
 	foreach item $theCompleteExtractedList {
 		$item applyTransform
 	}
@@ -499,12 +500,13 @@ $this proc checkModuleStateAndSetVariables {} {
 	
 	# updating the "theCompleteExtractedList" so that procedures which work with this list 
 	# don´t throw an error - for example on generated fields which were renamed or deleted by the user
+	set tempList [list]
 	foreach item $theCompleteExtractedList {
-		if { [lsearch -exact [all] $item] == -1 } {
-				set theFoundItemIndex [lsearch -exact $theCompleteExtractedList $item]
-			 	lreplace $theCompleteExtractedList $theFoundItemIndex $theFoundItemIndex;#delete element in list
-		}
+		if { [lsearch -exact [all] $item] != -1 } { lappend tempList $item }
 	}
+	set theCompleteExtractedList $tempList
+	unset -nocomplain tempList
+	#$this say "updated internal list: $theCompleteExtractedList"
 	
 	# and then update again the lists/arrays (the "[expr $i + 1]" connectionport shift 
 	# takes only the connectionport from the colormap port of $this into account):
