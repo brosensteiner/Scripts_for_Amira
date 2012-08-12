@@ -325,7 +325,7 @@ $this proc voxelOptionAxis2WhichIsChecked {} {
 	return $checked
 }
 
-#procedure for reslicing a voxel field to a given plane.
+#procedure for reslicing a voxel field to a given cut-plane.
 $this proc reSlice { objectList } {
 
 	global applyTransformModule obiqueSliceModule shapeAnalysisModul theCompleteExtractedList theResampledExtractedVoxelList
@@ -472,19 +472,20 @@ $this proc applyTransformation {} {
 		$item applyTransform
 	}
 	$this say "transformaton applied to the following items:"
-	$this say $theCompleteExtractedList
+	echo $theCompleteExtractedList
 }
 
 
-# function which checks on some $this states and sets the labels of "label set" ports, so every time something happens with $this \
-  it knows it´s actual state and it can be asked about it:
+# function which checks on some $this states and sets the labels of "label set" ports,
+# so every time something happens with $this
+# it knows it´s actual state and it can be asked about it:
 $this proc checkModuleStateAndSetVariables {} {
 
-	global allConnectedLabFields allEmptyConPorts labCountList
+	global allConnectedLabFields allEmptyConPorts labCountList theCompleteExtractedList
 	global lastLabSetArray userLabListSelState labSetList emptyConPorts labOKFlagList
 	global userResultSelState userSaveState
 	
-	$this fire
+	$this fire;#make shure all is up to date
 	
 	# first make all empty:
 	array unset userLabListSelState
@@ -496,7 +497,17 @@ $this proc checkModuleStateAndSetVariables {} {
 	set emptyConPorts 0
 	set labOKFlagList [list]
 	
-	# and then update again the lists/arrays (the "[expr $i + 1]" connectionport shift takes only the connectionport from the colormap port of $this into account):
+	# updating the "theCompleteExtractedList" so that procedures which work with this list 
+	# don´t throw an error - for example on generated fields which were renamed or deleted by the user
+	foreach item $theCompleteExtractedList {
+		if { [lsearch -exact [all] $item] == -1 } {
+				set theFoundItemIndex [lsearch -exact $theCompleteExtractedList $item]
+			 	lreplace $theCompleteExtractedList $theFoundItemIndex $theFoundItemIndex;#delete element in list
+		}
+	}
+	
+	# and then update again the lists/arrays (the "[expr $i + 1]" connectionport shift 
+	# takes only the connectionport from the colormap port of $this into account):
 	for { set i 1 } { $i < [expr [llength [$this connectionPorts]] - 1] } { incr i } {
 	
 		if { [$this  [lindex [$this connectionPorts] [expr $i + 1]] source] ne "" } {

@@ -23,7 +23,7 @@ Type the following in terminal:
 
 sorry, not ready in this early stage, but will be provided in the native Amira documetation format. 
 
-## MIT License
+## MIT License and citeware
 
 Copyright (c) 2012 Bernhard Rosensteiner
 
@@ -34,6 +34,8 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## Additional Info
+
+Please cite: Bernhard Rosensteiner, A custom Amira Script-Object. "https://github.com/brosensteiner/Scripts_for_Amira" 2012.
 
 When you use one of my Amira script objects in a scientific publication please [send me a message](mailto:brosensteiner@gmail.com) about for what and how it was used — i´m curious :)
 
