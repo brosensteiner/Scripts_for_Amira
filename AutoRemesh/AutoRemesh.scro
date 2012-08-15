@@ -1,0 +1,25 @@
+# Amira-Script-Object V3.0
+		
+$this proc constructor {} {
+
+
+
+}
+		
+$this proc destructor {} {
+
+
+
+}
+
+$this proc savePreparation { args } {
+
+
+
+}
+		
+$this proc compute {} {
+
+
+
+}
