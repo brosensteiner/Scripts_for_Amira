@@ -1,0 +1,17 @@
+#######################################################
+# Resource file for the the ExtractLabels script object
+#######################################################
+
+module 	-name 		"AutoRemesh" \
+		-primary	"HxSurface" \
+		-package	"hxscriptobj" \
+		-category	"myScriptObjects" \
+		-proc {
+			set mod [[create HxScriptObject] setLabel AutoRemesh]
+			$mod script setValue $AMIRA_LOCAL/share/script-objects/AutoRemesh.scro
+			$mod fire
+			#$mod labFieldPortCon1 connect $PRIMARY
+			$PRIMARY deselect 
+			$mod compute 
+		}
+		 

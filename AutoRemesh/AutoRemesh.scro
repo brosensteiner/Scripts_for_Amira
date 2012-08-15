@@ -1,8 +1,19 @@
 # Amira-Script-Object V3.0
-		
+
+
+#import of procs
+source "[file dirname [info script]]/AutoRemeshProcs.tcl";
+
+
+
+
+
 $this proc constructor {} {
 
-
+# button port
+$this newPortButtonList Utilities 1
+$this Utilities setLabel 0 "Connect all label fields"
+$this Utilities setCmd 0 { $this autoConnectToSurface }
 
 }
 		
