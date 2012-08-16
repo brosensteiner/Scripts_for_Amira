@@ -6,7 +6,7 @@ if { $amira_version < 540 } then {
 	theMsg warning "!!! your amira version is [app version], but you need at least 5.3 to use the complete range of functions from this module!!!"
 }
 
-source "[file dirname [info script]]/amira_procs.tcl";#relative path to amira_procs.tcl
+source "[file dirname [info script]]/extractLabels.tcl";#relative path to extractLabels.tcl
 
 # some packages:
 # package require Tcl 8.4;# Amira 5.2.4 has Tcl 8.4 interpreter built in (patchlevel 8.4.19)
@@ -14,10 +14,13 @@ source "[file dirname [info script]]/amira_procs.tcl";#relative path to amira_pr
 package require math::bigfloat
 package require math::linearalgebra
 package require math::statistics
+package require SharedProcs 1.0
 
+#i´m lazy :)
 namespace import -force \
 						::math::linearalgebra::mkVector \
-						::math::linearalgebra::crossproduct
+						::math::linearalgebra::crossproduct \
+						::SharedProcs::*
 
 # global variable definition (sorry no namespaces - when $this gets deleted there is a variable cleanup, \
   so this global variables will only be visible to Amira´s tcl shell as long as $this exists)
@@ -168,7 +171,7 @@ $this proc constructor {} {
 		$this createConPortButtonsToggles $i
 	}
 	
-	$this sayHello;# when constuctor is loaded prints welcome message in console
+	sayHello;# when constuctor is loaded prints welcome message in console
 		
 }
 
@@ -381,7 +384,7 @@ $this proc compute {} {
 		workArea startWorking
 	
 		$this setVar runCounter [expr [$this getVar runCounter] + 1];# sets the new runCounter + 1
-		$this say "run [$this getVar runCounter]:"
+		say "run [$this getVar runCounter]:"
 		workArea setProgressInfo "starting calculation"
 		workArea setProgressValue 0.4
 		
@@ -391,22 +394,22 @@ $this proc compute {} {
 		if { $overwriteToggleIsChecked == 1 && $theCompleteExtractedList ne [list] } {
 		
 			foreach item $theCompleteExtractedList {
-				$this say "overwrite: $item"
+				say "overwrite: $item"
 				remove $item
 			}
 			foreach addData $theAdditionalDataList {
-				$this say "overwrite: $addData"
+				say "overwrite: $addData"
 				remove $addData
 			}
 			foreach volRenModul $volRenList {
-				$this say "overwrite: $volRenModul"
+				say "overwrite: $volRenModul"
 				remove $volRenModul
 			}
 			# delete all list elements:
 			set theCompleteExtractedList [list]
 			set theAdditionalDataList [list]
 			set volRenList [list]
-			$this say "all created data deleted"
+			say "all created data deleted"
 			
 		}
 		
@@ -474,7 +477,7 @@ $this proc compute {} {
 						#seemed a good idea at first to transcribe the old parameter editor values in the newly generated surface, but makes the new file corrupt without saving and is actually not neccesary, because extracted surfaces (3D-meshes) only need one patch.
 						
 						# clearing the old parameters:
-#						$this clearBundle $newExtractedSurface Materials
+#						clearBundle $newExtractedSurface Materials
 #						eval "$newExtractedSurface parameters Materials newBundle $theLabel"
 						 
 						# adopting the values for the respective label:
@@ -484,7 +487,7 @@ $this proc compute {} {
 #							}
 #						}
 						#some additional info: 	
-						$this stampField $newExtractedSurface ModuleInfo ModuleName $moduleName author $theAuthor
+						stampField $newExtractedSurface ModuleInfo ModuleName $moduleName author $theAuthor
 						
 						lappend theCompleteExtractedList $newExtractedSurface
 						lappend theExtractedSurfacesList $newExtractedSurface
@@ -555,7 +558,7 @@ $this proc compute {} {
 						
 						# some additional info (orig_labelfield/orig_bundleindex is needed in order to find shape parameters later too from the newly created voxelfield \
 						  -> a labelfield is needed for ShapeAnalysis ...): 	
-						$this stampField $theResultFromArithmeticCalcName ModuleInfo ModuleName 		$moduleName \
+						stampField $theResultFromArithmeticCalcName ModuleInfo ModuleName 		$moduleName \
 																					 author				$theAuthor  \
 																					 orig_labelfield	$labelfield \
 																					 orig_bundleindex	$i
@@ -592,7 +595,7 @@ $this proc compute {} {
 							if { 
 								 [lindex $crPrd23 0] < 0 && $evec1x >= 0 || \
 								 [lindex $crPrd23 0] > 0 && $evec1x < 0 \
-							   } then { set valFromSprdsht($i,evector3) [eval $this switchNumberSigns $valFromSprdsht($i,evector3)] }
+							   } then { set valFromSprdsht($i,evector3) [eval switchNumberSigns $valFromSprdsht($i,evector3)] }
 							   
 							set evec3x [lindex $valFromSprdsht($i,evector3) 0]
 							set evec3y [lindex $valFromSprdsht($i,evector3) 1]
@@ -617,7 +620,7 @@ $this proc compute {} {
 							set alpha3InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $alpha3]]]]
 							set beta3InDeg	[expr [math::bigfloat::tostr [math::bigfloat::rad2deg [math::bigfloat::fromstr $beta3]]]]
 														
-							set resetToWorldCoord [eval $this switchNumberSigns $valFromSprdsht($i,c)]
+							set resetToWorldCoord [eval switchNumberSigns $valFromSprdsht($i,c)]
 							eval "$theItemToTransform setTranslation $resetToWorldCoord";#translates center of object in 3D space to world´s origin (i.e. 0, 0, 0)
 												
 							#the rotations for aligning the eigenvectors to the world x, y and z axis:
@@ -721,16 +724,16 @@ $this proc compute {} {
 		
 		# user info which will be shown in the console if necessary:
 		if { $allConnectedLabFields eq "" && [$this getVar runCounter] > 0 } {
-			$this say "nothing to process - no label field connected"
+			say "nothing to process - no label field connected"
 		}
 		if { [lrange $resultSelectionState 3 5] eq [list 0 0 0] && [$this getVar runCounter] > 0 } {
-			$this say "nothing to process - choose on ore more result options"
+			say "nothing to process - choose on ore more result options"
 		}
 		foreach { key value } [array get userLabListSelState] {# searches if user has selected at least one label in the label sets
 				
 			regexp {(?:values\s\d)(.+)(?:isTristate)} $value myMatchedRegexp myMatchedRegexpSub
 			if { ![regexp {1} $myMatchedRegexpSub] && [$this getVar runCounter] > 0 } {
-				$this say "there are no labels selected for processing in \"[$this labSet$key getLabel]\""
+				say "there are no labels selected for processing in \"[$this labSet$key getLabel]\""
 			}
 		
 		}
@@ -789,7 +792,7 @@ $this proc compute {} {
 			}
 			
 		} else {
-			$this say "whatever you typed in the \"[$this saveResults getLabel]\" field ... , it is not a valid directory name, so nothing has been saved!"
+			say "whatever you typed in the \"[$this saveResults getLabel]\" field ... , it is not a valid directory name, so nothing has been saved!"
 		}
 		
 	}
@@ -797,16 +800,16 @@ $this proc compute {} {
 	#assign the Rot buttons individual rotation procedures:
 	if { [$this rotation getOptValue] == 0 } then {#test if menu entry in rotation port is "all"
 
-		$this rotation setCmd 0 { $this rotateAll theArithmeticExtractedVoxelList virtualEvec3 }
-		$this rotation setCmd 1 { $this rotateAll theArithmeticExtractedVoxelList virtualEvec2 }
-		$this rotation setCmd 2 { $this rotateAll theArithmeticExtractedVoxelList virtualEvec1 }
+		$this rotation setCmd 0 { rotateAll theArithmeticExtractedVoxelList virtualEvec3 }
+		$this rotation setCmd 1 { rotateAll theArithmeticExtractedVoxelList virtualEvec2 }
+		$this rotation setCmd 2 { rotateAll theArithmeticExtractedVoxelList virtualEvec1 }
 	}
 	if { [$this rotation getOptValue] != 0 } {#test if menu entry in rotation port is other than "all"
 		
 		set theMenuEntryInRotationPort [lindex $theArithmeticExtractedVoxelList [expr [$this rotation getOptValue] - 1]];#set the text of the menu entry - would be nice if there where an "getOptValueString" function in Amira, then this line would look like: set theMenuEntryInRotationPort [$this rotation getOptValueString]
-		$this rotation setCmd 0 { $this rotateObject theMenuEntryInRotationPort virtualEvec3 }
-		$this rotation setCmd 1 { $this rotateObject theMenuEntryInRotationPort virtualEvec2 }
-		$this rotation setCmd 2 { $this rotateObject theMenuEntryInRotationPort virtualEvec1 }
+		$this rotation setCmd 0 { rotateObject theMenuEntryInRotationPort virtualEvec3 }
+		$this rotation setCmd 1 { rotateObject theMenuEntryInRotationPort virtualEvec2 }
+		$this rotation setCmd 2 { rotateObject theMenuEntryInRotationPort virtualEvec1 }
 	}
 		
 	$this setVar computeCounter [expr [$this getVar computeCounter] + 1];# computeCounter will get +1 for every run from compute proc

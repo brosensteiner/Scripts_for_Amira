@@ -1,5 +1,5 @@
 #######################################################
-# Resource file for the the ExtractLabels script object
+# Resource file for the the AutoRemesh script object
 #######################################################
 
 module 	-name 		"AutoRemesh" \

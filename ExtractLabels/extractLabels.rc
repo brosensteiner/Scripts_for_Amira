@@ -7,7 +7,7 @@ module 	-name 		"ExtractLabels" \
 		-package	"hxscriptobj" \
 		-category	"myScriptObjects" \
 		-proc {
-			set mod [[create HxScriptObject] setLabel ExtractLabels]
+			set mod [[create HxScriptObject] setLabel "ExtractLabels"]
 			$mod script setValue $AMIRA_LOCAL/share/script-objects/ExtractLabels.scro
 			$mod fire
 			$mod labFieldPortCon1 connect $PRIMARY

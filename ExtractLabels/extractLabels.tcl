@@ -1,142 +1,3 @@
-$this proc sayHello {} {
-	global moduleName
-	echo "\n************ module \"$moduleName\" loaded successfully :) ************\n"
-}
-$this proc say { something } {
-	global moduleName
-	echo "$moduleName: $something"
-}
-# procedure which can add new parameters to a amira field. 1.arg: the field, 2.arg: a new Bundle, args: pairs of parameter/values (e.g. Color { 1 0 1 })
-$this proc stampField { field theBundle args } {
-
-	$field parameters newBundle $theBundle
-	foreach { par val } $args {
-		eval "$field parameters $theBundle setValue $par $val"
-	}
-}
-# clear items in a specified Bundle in a amira field (saves some typing): \
-  "args" is the "path" to a nested bundle
-$this proc clearBundle { field args } {
-
-	if { [llength $args] > 1 } {
-		set lastElement [lindex $args end]
-		set restElements [lrange $args 0 end-1]
-	} else {# when only one bundle in args (e.g. Materials)
-		set lastElement $args
-		set restElements ""
-	}
-	
-	foreach item [eval "$field $restElements parameters $lastElement list"] {
-		eval "$field $restElements parameters $lastElement $item setFlag NO_DELETE 0"
-		eval "$field $restElements parameters $lastElement remove $item"
-	}
-}
-
-# simple port test: procedure returns 1 when module has port, otherwise it returns 0
-$this proc hasPort {modul port} {
-	upvar #1 $modul myModule
-	if { [lsearch [$myModule allPorts] $port] != -1 } then { return 1 } else { return 0 }
-}
-
-#simple proc for switching between positiv and negative numbers:
-$this proc switchNumberSigns { args } {
-	set list [list]
-	foreach i $args { lappend list [expr -$i] }
-	return $list
-}
-
-#proc which translates a point in 3D space. argument point has to be in cartesian coordinates
-$this proc translateTo { point pointToTranslateTo } {
-
-	set point [split $point " "]
-	set pointToTranslateTo [split $pointToTranslateTo " "]
-
-	set transformList [list]
-	for { set i 0 } { $i < [llength $point]  } { incr i } {
-		lappend transformList [expr [lindex $point $i] - [lindex $pointToTranslateTo $i]]
-		echo "die rechunung: [expr [lindex $point $i] - [lindex $pointToTranslateTo $i]]"
-	}
-	return $transformList
-}
-
-# procs which rotates a given object(s) on a given axis (axis == world origin to evecPointAxis)
-$this proc rotateAll { theObjectList evecPointAxis { degrees 180 } } {
-
-	upvar $theObjectList upvList $evecPointAxis upvevecPointAxis
-	foreach item $upvList {
-		eval "$item rotate $upvevecPointAxis $degrees"
-	}
-}
-$this proc rotateObject { object evecPointAxis { degrees 180 } } {
-
-	upvar $object upvObject $evecPointAxis upvevecPointAxis
-	eval "$upvObject rotate $upvevecPointAxis $degrees"
-}
-
-# procedure for extracting a bunch of values from an amira spreadsheet object generated from the ShapeAnalysis modul. :\
-  return value is an array which holds the values ("array set varName extractFromSpreadsheet spreadObj" catches the array returned \
-  by extractFromSpreadsheet again in an array). This proc works only in conjunctions with the ShapeAnalysis module \
-  because the generated spreadsheet from this module has a particular order of rows and columns (labelfields are coded in the spreadsheet as their bundle-index not as there names!!!) \
-  getting the values from the array for example: $theArray(bundleindex,evector1)
-$this proc extractFromSpreadsheet { spreadObj } {
-	
-	array set spreadExtractArray {}
-	#put volume in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],v) [list [$spreadObj getValue 1 $i]]
-	}
-	#put mass in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],m) [list [$spreadObj getValue 32 $i]]
-	}
-	#put area in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],a) [list [$spreadObj getValue 33 $i]]
-	}
-	#put center point x, y, z in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],c) [list	[$spreadObj getValue 2 $i]\
-																	[$spreadObj getValue 3 $i]\
-																	[$spreadObj getValue 4 $i]\
-																	]
-	}
-	#put eigenvalues x, y, z in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],evalue) [list	[$spreadObj getValue 8 $i]\
-																		[$spreadObj getValue 9 $i]\
-																		[$spreadObj getValue 10 $i]\
-																		]
-	}
-	#put eigenvector 1x, 1y, 1z in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],evector1) [list	[$spreadObj getValue 11 $i]\
-																			[$spreadObj getValue 12 $i]\
-																			[$spreadObj getValue 13 $i]\
-																			]
-	}
-	#put eigenvector 2x, 2y, 2z in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],evector2) [list	[$spreadObj getValue 14 $i]\
-																			[$spreadObj getValue 15 $i]\
-																			[$spreadObj getValue 16 $i]\
-																			]
-	}
-	#put eigenvector 3x, 3y, 3z in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],evector3) [list	[$spreadObj getValue 17 $i]\
-																			[$spreadObj getValue 18 $i]\
-																			[$spreadObj getValue 19 $i]\
-																			]
-	}
-	#put moments of inertia ixx, Iyy, Izz in array:
-	for { set i 0 } { $i < [$spreadObj getNumRows]  } { incr i } {
-		set spreadExtractArray([$spreadObj getValue 0 $i],moinertia) [list	[$spreadObj getValue 28 $i]\
-																			[$spreadObj getValue 29 $i]\
-																			[$spreadObj getValue 30 $i]\
-																			]
-	}
-	return [array get spreadExtractArray]
-}
 
 # proc for finding some shape parameters of labels in a given labelfield and return of an array which holds the shape parameters\
   (e.g. eigenvalues, eigenvectors, mass -> see procedure "extractFromSpreadsheet")\
@@ -151,7 +12,7 @@ $this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnal
 	$shapeAnalysisModul fire
 	
 	set theResultFromShapeAnalysis [$shapeAnalysisModul getResult]
-	array set extrValFromSprdsht [$this extractFromSpreadsheet $theResultFromShapeAnalysis]
+	array set extrValFromSprdsht [extractFromSpreadsheet $theResultFromShapeAnalysis]
 	$theResultFromShapeAnalysis master disconnect 
 	lappend theAdditionalDataList $theResultFromShapeAnalysis
 	#remove $theResultFromShapeAnalysis
@@ -174,7 +35,7 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 	#makes shure treshold is not out of max value (when treshold is greater than max value it will be set to max value -1):
 	if { $treshhold >= [lindex [$upvItem getRange] 1] } then {
 		set treshhold [expr [lindex [$upvItem getRange] 1] - 1]
-		$this say "treshold you specified is greater than max value in voxel field! Will be set to: $treshhold"
+		say "treshold you specified is greater than max value in voxel field! Will be set to: $treshhold"
 	}
 	
 	workArea startWorking;#a progress indicator makes sense in this slow proc
@@ -302,7 +163,7 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 	}
 	if { $collectedCandidates ne [list] } then { set cropPoints [lreplace $cropPoints 5 5 [expr int([::math::statistics::max $collectedCandidates])]] }
 	
-	$this say "cropPoints for $upvItem: $cropPoints"
+	say "cropPoints for $upvItem: $cropPoints"
 	eval $upvItem crop $cropPoints;#cropping of the item
 	$upvItem fire;#connected volren module should also be updated, so here is fire
 	
@@ -409,7 +270,7 @@ $this proc reSlice { objectList } {
 #		echo "newVolume: $bbox_X, $bbox_Y, $bbox_Z, $newVolume"
 		
 		#print some stats (like Amira´s own applyTransform command):
-		$this say "Resample: interpol=$resampleOptions2_1, new dims=[string map { " " "x" } [$theResult getDims]], volume=[format "%.1f" [expr 100 * $newVolume / $origVolume]]\%"
+		say "Resample: interpol=$resampleOptions2_1, new dims=[string map { " " "x" } [$theResult getDims]], volume=[format "%.1f" [expr 100 * $newVolume / $origVolume]]\%"
 	}
 }
 
@@ -468,12 +329,13 @@ $this proc applyTransformation {} {
 	
 	global theCompleteExtractedList
 	
+	say "try to apply transformaton to the following data objects:"
+	echo $theCompleteExtractedList
+	
 	$this checkModuleStateAndSetVariables;#better check here also
 	foreach item $theCompleteExtractedList {
 		$item applyTransform
 	}
-	$this say "transformaton applied to the following items:"
-	echo $theCompleteExtractedList
 }
 
 
@@ -506,7 +368,7 @@ $this proc checkModuleStateAndSetVariables {} {
 	}
 	set theCompleteExtractedList $tempList
 	unset -nocomplain tempList
-	#$this say "updated internal list: $theCompleteExtractedList"
+	#say "updated internal list: $theCompleteExtractedList"
 	
 	# and then update again the lists/arrays (the "[expr $i + 1]" connectionport shift 
 	# takes only the connectionport from the colormap port of $this into account):
@@ -518,7 +380,7 @@ $this proc checkModuleStateAndSetVariables {} {
 				 [[$this [lindex [$this connectionPorts] [expr $i + 1]] source] getControllingData] eq ""
 			   } {# test if label field has a image data field attached (e.g. needed for arithmetic calculations)
 			   
-				theMsg warning "warning! [$this [lindex [$this connectionPorts] [expr $i + 1]] source] has no image data field connected,\nfor processing of \"[$this result getLabel 2]\" and \"[$this result getLabel 2]\" results this is required"
+				theMsg warning "warning! [$this [lindex [$this connectionPorts] [expr $i + 1]] source] has no image data field connected,\nfor processing of \"[$this result getLabel 2]\" and \"[$this result getLabel 2] results\" this is required"
 				$this [lindex [$this connectionPorts] [expr $i + 1]] untouch;#don´t know why connection port gets touched, so here is untouch that the warning window is only once not twice shown
 				lappend labOKFlagList 0
 				
@@ -573,16 +435,16 @@ $this proc checkModuleStateAndSetVariables {} {
 	}
 	
 	# printing $this info (only for debugging):
-#	$this say "\nuserLabListSelState: [array get userLabListSelState]"
-#	$this say "lastLabSetArray: [array get lastLabSetArray]"
-#	$this say "allConnectedLabFields: $allConnectedLabFields"
-#	$this say "allEmptyConPorts: $allEmptyConPorts"
-#	$this say "emptyConPorts: $emptyConPorts"
-#	$this say "labOKFlagList: $labOKFlagList"
-#	$this say "labCountList: $labCountList"
-#	$this say "labSetList: $labSetList"
-#	$this say "userResultSelState: $userResultSelState"
-#	$this say "userSaveState: $userSaveState\n"
+#	say "\nuserLabListSelState: [array get userLabListSelState]"
+#	say "lastLabSetArray: [array get lastLabSetArray]"
+#	say "allConnectedLabFields: $allConnectedLabFields"
+#	say "allEmptyConPorts: $allEmptyConPorts"
+#	say "emptyConPorts: $emptyConPorts"
+#	say "labOKFlagList: $labOKFlagList"
+#	say "labCountList: $labCountList"
+#	say "labSetList: $labSetList"
+#	say "userResultSelState: $userResultSelState"
+#	say "userSaveState: $userSaveState\n"
 	
 }
 
@@ -707,7 +569,7 @@ $this proc setCorrespondingPort { module port { portIndex 0 } } {
 	upvar #0 $module myModule
 	
 	if { [info exists myModule] == 0 } {
-		$this say "hm\.\.\. $myModule module does not exist, maybe you deleted it - restart $moduleName"
+		say "hm\.\.\. $myModule module does not exist, maybe you deleted it - restart $moduleName"
 	}
 	
 	$this fire;# infinit loop in Amira when here no update of all downstream modules - crashes most of the time Amira
@@ -715,7 +577,7 @@ $this proc setCorrespondingPort { module port { portIndex 0 } } {
 	switch -exact [$this $port getTypeId] {
 		HxPortMultiMenu { $myModule $port setValueString $portIndex [$this $port getLabel [$this $port getValue $portIndex]] }
 		HxPortToggleList { $myModule $port setValue  $portIndex [$this $port getValue $portIndex] }
-		default { $this say "proc setCorrespondingPort: could not find a corresponding port" }
+		default { say "proc setCorrespondingPort: could not find a corresponding port" }
 	};# setValueString is more robust than index counting with setValue
 	
 	$myModule compute
