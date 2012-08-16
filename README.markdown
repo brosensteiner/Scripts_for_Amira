@@ -25,7 +25,7 @@ You will find this package(s) in my repository (AmiraTclPackages).
 Probably the easiest way is to append the package path to the "auto\_path" variable, so it is possible to have a costum file path. To do this execute the following steps:
 
 - open the Amira.init file ($AMIRA\_ROOT/share/resources/Amira/Amira.init)
-- add the following line: lappend auto\_path "here stands the path to the package file"
+- add the following line (does´t matter where): lappend auto\_path "here stands the path to the package file"
 - at the next start of Amira write in the amira console: "echo $auto\_path"
 - if the output contains your path all is ok :)
 

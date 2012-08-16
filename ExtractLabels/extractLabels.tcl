@@ -1,3 +1,6 @@
+################################################
+# additional procedures for ExtractLabels.scro #
+################################################
 
 # proc for finding some shape parameters of labels in a given labelfield and return of an array which holds the shape parameters\
   (e.g. eigenvalues, eigenvectors, mass -> see procedure "extractFromSpreadsheet")\
