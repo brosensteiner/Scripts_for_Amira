@@ -307,24 +307,6 @@ $this proc makeArrayFromAmiraParameters { field { theComplValArr {} } { concatBu
 	
 }
 
-
-# procedure which connects $this to all label fields in the pool when invoked:
-$this proc autoConnectToLabelField {} {
-
-	global allConnectedLabFields allEmptyConPorts
-	set allLabelFieldsInPoolList [all HxUniformLabelField3]
-	set allConPorts [$this connectionPorts]
-	
-	foreach item $allConPorts {
-		if { [$this $item isOfType "HxConnection"] } then { $this $item disconnect };#disconnects only HxConnection connection ports (e.g. not colormap port)
-	}
-	#(re)connects to all labelfields in pool: 
-	foreach item $allLabelFieldsInPoolList {
-		$this [lindex $allEmptyConPorts 0] connect $item
-		$this compute
-	}
-}
-
 # proc for applying the transformation which $this made -> transformation matrix gets reset, but the object in 3D space stays at its position \
   this proc is needed, because when one wants to export for example a HxSurface Object in another application for further processing \
   most of the time the amira transformation matrix is not recognized by this applications (except the app can interpret amiramesh files)
@@ -495,7 +477,7 @@ $this proc createConPortButtonsToggles { i } {
 	eval "\$this labSetSelBottons\$i setCmd 0 \{ \$this bottonNonePressed " "$i \}"
 	eval "\$this labSetSelBottons\$i setCmd 1 \{ \$this bottonAllPressed " "$i \}"
 	
-	# ports should initially hidden:
+	# ports should initially be hidden:
 	$this labSeparator$i hide
 	$this labSetSelBottons$i hide
 	$this labSet$i hide

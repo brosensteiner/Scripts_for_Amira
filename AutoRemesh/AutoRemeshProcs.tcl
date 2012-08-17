@@ -1,19 +1,3 @@
-# procedure which connects $this to all surface fields in the pool when invoked:
-$this proc autoConnectToSurface {} {
-
-	set allSurfacesInPoolList [all HxSurface]
-	set allConPorts [$this connectionPorts]
-	
-	foreach item $allConPorts {
-		if { [$this $item isOfType "HxConnection"] } then { $this $item disconnect };#disconnects only HxConnection connection ports (e.g. not colormap port)
-	}
-	#(re)connects to all labelfields in pool: 
-	foreach item $allSurfacesInPoolList {
-		$this [lindex $allEmptyConPorts 0] connect $item
-		$this compute
-	}
-}
-
 # procedure creates gui elements (separator, bottons, toggles) for a connected lab field \
   argument i is the number of portname
 $this proc createConPortButtonsToggles { i } {

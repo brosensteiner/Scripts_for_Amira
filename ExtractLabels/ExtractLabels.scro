@@ -91,7 +91,7 @@ $this proc constructor {} {
 	# creates a generic port for some stuff (maybe future extensions):
 	$this newPortButtonList Utilities 2
 	$this Utilities setLabel 0 "Connect all label fields"
-	$this Utilities setCmd 0 { $this autoConnectToLabelField }
+	$this Utilities setCmd 0 { autoConnectToAll HxUniformLabelField3 }
 	$this Utilities setLabel 1 "Apply transformation"
 	$this Utilities setCmd 1 { $this applyTransformation }
 	

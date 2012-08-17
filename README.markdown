@@ -1,6 +1,6 @@
 # Scripts for Amira
 
-this Amira scipt-object collection is the result of a "little" sideproject of my diploma thesis at the Department of Theoretical Biology at the University of Vienna.
+this Amira scipt-object collection is the result of a "little" sideproject of my diploma thesis at the Department of Theoretical Biology at the University of Vienna. For working with Amira script-objects it is advisable to make a local amira directory (look in the online Amira documentation on how to do it).
 For convenience there is for every script-object a .rc file for integrating the script-object in the Amira context menu (must be copied in the share/resources folder of $AMIRA\_LOCAL or $AMIRA\_ROOT).
 Under some circumstances the .rc file has to be adapted at the hosts environment:
 
