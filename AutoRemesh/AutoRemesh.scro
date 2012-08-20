@@ -7,110 +7,176 @@ source "[file dirname [info script]]/AutoRemeshProcs.tcl"
 namespace import -force \
 						::SharedProcs::*
 						
+
+$this setVar moduleName [moduleName]			
+$this setVar theAuthor [theAuthor "Bernhard Rosensteiner"]
+
+set theSurfaceRemesher	XxXRemeshSurface_[$this getVar moduleName]
+set theRemeshedSurfacesList [list]
+set allSurfacesInPoolList [all HxSurface]
 						
 $this proc constructor {} {
 
-set moduleName [moduleName]			
-set theAuthor [theAuthor "Bernhard Rosensteiner"]
+	global theSurfaceRemesher
+	
+	#initialise a comput proc counter:
+	$this setVar computeCounter 0
+	
+	$this select;
+	
+	#save port:
+	$this newPortFilename saveResults
+	$this saveResults setLabel "Save result"
+	$this saveResults setMode 3
+	
+	#recreating the ports of the RemeshSurface module and connecting with it:
+	$this newPortMultiMenu objective 2
+	$this objective setLabel 0 0 "High regularity"
+	$this objective setLabel 0 1 "Best isotropic vertex placement"
+	
+	$this newPortIntTextN triangleArea 3
+	$this triangleArea setLabel 0 "nPasses"
+	$this triangleArea setLabel 1 "nAreaSteps"
+	$this triangleArea setLabel 2 "nEdgeFlips"
+	
+	$this newPortIntTextN lloydRelaxation 1
+	$this lloydRelaxation setLabel 0 "nPasses"
 
-# button port for Utilities
-$this newPortButtonList Utilities 1
-$this Utilities setLabel 0 "Connect all surface fields"
-$this Utilities setCmd 0 { autoConnectToAll HxSurface }
+	$this newPortIntTextN desiredSize 3
+	$this desiredSize setLabel 0 "#vert."
+	$this desiredSize setLabel 1 "#tris"
+	$this desiredSize setLabel 2 "%"
+	$this desiredSize setMinMax 2 1 100
+	
+	$this newPortButtonList defaults 1
+	$this defaults setLabel 0 "Set"
+	
+	$this newPortIntTextN errorThresholds 2
+	$this errorThresholds setLabel 0 "smoothness"
+	$this errorThresholds setLabel 1 "distance"
+	
+	$this newPortFloatTextN densityContrast 1
+	
+	$this newPortFloatTextN densityRange 2
+	$this errorThresholds setLabel 0 "min"
+	$this errorThresholds setLabel 1 "max"
+	
+	$this newPortRadioBox interpolateOrigSurface 2
+	$this interpolateOrigSurface setLabel "Interpolate orig. surface"
+	$this interpolateOrigSurface setLabel 0 "smoothly"
+	$this interpolateOrigSurface setLabel 1 "none"
+	
+	$this newPortToggleList remeshOptions1 2
+	$this remeshOptions1 setLabel 0 "fix contours"
+	$this remeshOptions1 setLabel 1 "contract boundary edges"
 
-set theSurfaceRemesher [create HxRemeshSurface]
-#$theSurfaceRemesher hide;will be hidden in final version
-
-#recreating the ports of the RemeshSurface module and connecting with it:
-$this newPortMultiMenu objective 2
-$this objective setLabel 0 0 "High regularity"
-$this objective setLabel 0 1 "Best isotropic vertex placement"
-$this objective connect $theSurfaceRemesher objective
-
-$this newPortIntTextN triangleArea 3
-$this triangleArea setLabel 0 "nPasses"
-$this triangleArea setLabel 1 "nAreaSteps"
-$this triangleArea setLabel 2 "nEdgeFlips"
-$this triangleArea setValues 5 3 3
-$this triangleArea connect $theSurfaceRemesher triangleArea
-
-$this newPortIntTextN lloydRelaxation 1
-$this lloydRelaxation setLabel 0 "nPasses"
-$this lloydRelaxation setValues 40
-$this lloydRelaxation connect $theSurfaceRemesher lloydRelaxation
-
-$this newPortIntTextN desiredSize 3
-$this desiredSize setLabel 0 "#vert."
-$this desiredSize setLabel 1 "#tris"
-$this desiredSize setLabel 2 "%"
-$this desiredSize setMinMax 2 1 100
-$this desiredSize setValues 0 0 100
-$this desiredSize connect $theSurfaceRemesher desiredSize
-
-$this newPortButtonList defaults 1
-$this defaults setLabel 0 "Set"
-$this defaults connect $theSurfaceRemesher defaults
-
-$this newPortIntTextN errorThresholds 2
-$this errorThresholds setLabel 0 "smoothness"
-$this errorThresholds setLabel 1 "distance"
-$this errorThresholds setValues 0 0
-$this errorThresholds connect $theSurfaceRemesher errorThresholds
-
-$this newPortFloatTextN densityContrast 1
-$this densityContrast setValues 0
-$this densityContrast connect $theSurfaceRemesher densityContrast
-
-$this newPortFloatTextN densityRange 2
-$this errorThresholds setLabel 0 "min"
-$this errorThresholds setLabel 1 "max"
-$this errorThresholds setValues 8.58993e+09 8.58993e+09
-$this errorThresholds connect $theSurfaceRemesher errorThresholds
-
-$this newPortRadioBox interpolateOrigSurface 2
-$this interpolateOrigSurface setLabel "Interpolate orig. surface"
-$this interpolateOrigSurface setLabel 0 "smoothly"
-$this interpolateOrigSurface setLabel 1 "none"
-$this interpolateOrigSurface setValue 1
-$this interpolateOrigSurface connect $theSurfaceRemesher interpolateOrigSurface
-
-$this newPortToggleList remeshOptions1 2
-$this remeshOptions1 setLabel 0 "fix contours"
-$this remeshOptions1 setLabel 1 "contract boundary edges"
-$this remeshOptions1 setValue 0 0
-$this remeshOptions1 setValue 1 1
-$this remeshOptions1 connect $theSurfaceRemesher remeshOptions1
-
-$this newPortRadioBox remeshOptions2 2
-$this remeshOptions2 setLabel 0 "whole surface"
-$this remeshOptions2 setLabel 1 "only around corners"
-$this remeshOptions2 setValue 1
-$this remeshOptions2 connect $theSurfaceRemesher remeshOptions2
-
-$this newPortButtonList modifyResult 1
-$this modifyResult setLabel 0 "Apply"
-$this modifyResult connect $theSurfaceRemesher modifyResult
-
-
-
-sayHello
+	$this newPortRadioBox remeshOptions2 2
+	$this remeshOptions2 setLabel 0 "whole surface"
+	$this remeshOptions2 setLabel 1 "only around corners"
+	
+	$this newPortToggleList surfacePathOptions 2
+	$this surfacePathOptions setLabel "Surface path options"
+	$this surfacePathOptions setLabel 0 "use surface paths"
+	$this surfacePathOptions setLabel 1 "fix control points of surf. path"
+	
+	$this newPortButtonList modifyResult 1
+	$this modifyResult setLabel 0 "Apply"
+	
+	# creates Action Button port
+	$this newPortDoIt action
+	$this action setLabel "Action"
+	$this action setLabel 0 "Dolt"
+	$this action hide;# actually need not be visible, because apply botton does the job
+	
+	
+	sayHello
 
 }
 		
 $this proc destructor {} {
 
+	global theSurfaceRemesher theRemeshedSurfacesList allSurfacesInPoolList
+	
+	#cleaning up the pool and global variables:
+	if { [lsearch [all] $theSurfaceRemesher]	!= -1 }		{ remove $theSurfaceRemesher }
 
+	if { [info exists theSurfaceRemesher] }					{ unset theSurfaceRemesher }
+	if { [info exists theRemeshedSurfacesList] }			{ unset theRemeshedSurfacesList }
+	if { [info exists allSurfacesInPoolList] }				{ unset allSurfacesInPoolList }
 
+		
 }
 
 $this proc savePreparation { args } {
 
-
+	global theSurfaceRemesher theRemeshedSurfacesList allSurfacesInPoolList
 
 }
 		
 $this proc compute {} {
 
-
-
+	global theSurfaceRemesher theRemeshedSurfacesList allSurfacesInPoolList
+	
+	set userSaveState [$this saveResults getState]
+	
+	$this updateModuleState;# holds all global variables, lists, arrays and so on up to date
+	
+	#initial connect of theSurfaceRemesher (second!!! run of compute proc)
+	if { [$this getVar computeCounter] == 1 } {
+		
+		#connecting all corresponding ports with a RemeshSurface module:
+		$this objective connect $theSurfaceRemesher objective
+		$this triangleArea connect $theSurfaceRemesher triangleArea
+		$this lloydRelaxation connect $theSurfaceRemesher lloydRelaxation
+		$this desiredSize connect $theSurfaceRemesher desiredSize
+		$this defaults connect $theSurfaceRemesher defaults
+		$this errorThresholds connect $theSurfaceRemesher errorThresholds
+		$this densityContrast connect $theSurfaceRemesher densityContrast
+		$this errorThresholds connect $theSurfaceRemesher errorThresholds
+		$this interpolateOrigSurface connect $theSurfaceRemesher interpolateOrigSurface
+		$this remeshOptions1 connect $theSurfaceRemesher remeshOptions1
+		$this remeshOptions2 connect $theSurfaceRemesher remeshOptions2
+		$this surfacePathOptions connect $theSurfaceRemesher surfacePathOptions
+		$this modifyResult connect $theSurfaceRemesher modifyResult
+		
+		#setting all ports to RemeshSurface module´s standard parameters:
+		$this triangleArea setValues 5 3 3
+		$this lloydRelaxation setValues 40
+		$this desiredSize setValues 0 0 100
+		$this errorThresholds setValues 0 0
+		$this densityContrast setValues 0
+		$this errorThresholds setValues 8.58993e+09 8.58993e+09
+		$this interpolateOrigSurface setValue 1
+		$this remeshOptions1 setValue 0 0
+		$this remeshOptions1 setValue 1 1
+		$this remeshOptions2 setValue 1
+		$this surfacePathOptions setValue 1 1
+	}
+	
+	if { [$this action isNew] } {
+	
+		$this remeshAllSurfacesPlease allSurfacesInPoolList
+	}
+	
+	
+	# saving routine:		
+	if { $userSaveState ne "" && $theRemeshedSurfacesList ne [list] } {# user has typed something in the saveResults port and theRemeshedSurfacesList is not empty
+		
+		if { [file isdirectory $userSaveState] } {
+		
+			foreach result $theRemeshedSurfacesList {
+				
+				switch -exact [$result getTypeId] {
+					#HxUniformScalarField3 { $result save "Amiramesh ascii" $userSaveState/$result }
+					HxSurface { $result save "HxSurface ascii" $userSaveState/$result }
+				}
+			}
+			
+		} else {
+			say "whatever you typed in the \"[$this saveResults getLabel]\" field ... , it is not a valid directory name, so nothing has been saved!"
+		}
+		
+	}
+	
+	$this setVar computeCounter [expr [$this getVar computeCounter] + 1];#increment compute counter
 }

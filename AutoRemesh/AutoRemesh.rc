@@ -10,7 +10,7 @@ module 	-name 		"AutoRemesh" \
 			set mod [[create HxScriptObject] setLabel AutoRemesh]
 			$mod script setValue $AMIRA_LOCAL/share/script-objects/AutoRemesh.scro
 			$mod fire
-			#$mod labFieldPortCon1 connect $PRIMARY
+			$mod data connect $PRIMARY
 			$PRIMARY deselect 
 			$mod compute 
 		}

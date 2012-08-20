@@ -9,7 +9,7 @@ $this proc makeShapeAnalysis { labelfield { shapeAnalysisModul "defaultShapeAnal
 	
 	global theAdditionalDataList
 	# the shape analysis:
-	$this createModuleAndConnectIfOkToSource HxShapeAnalysis $shapeAnalysisModul $labelfield;#$shapeAnalysisModul is global!!! so it has to be deleted in the destructor proc, otherwise it remains in the pool (it´s global because then it has not every time be generated anew for every call of "makeShapeAnalysis" and stays in the pool)
+	createModuleAndConnectIfOkToSource HxShapeAnalysis $shapeAnalysisModul $labelfield;#$shapeAnalysisModul is global!!! so it has to be deleted in the destructor proc, otherwise it remains in the pool (it´s global because then it has not every time be generated anew for every call of "makeShapeAnalysis" and stays in the pool)
 	if { $massCalc } then { $shapeAnalysisModul Field connect [$labelfield getControllingData] }
 	$shapeAnalysisModul action setValue 0
 	$shapeAnalysisModul fire
@@ -168,7 +168,7 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 	
 	say "cropPoints for $upvItem: $cropPoints"
 	eval $upvItem crop $cropPoints;#cropping of the item
-	$upvItem fire;#connected volren module should also be updated, so here is fire
+	$upvItem fire;#connected volren module should also be updated
 	
 	workArea setProgressInfo "cropping finished"
 	workArea stopWorking	
@@ -177,16 +177,13 @@ $this proc autoCrop { item { treshhold 0.000000 } } {
 # helper procs to check some values of $this (are needed because some buttons have a "setcmd" and they must be able to \
   check this states outside the "compute" procedure loop):
 $this proc voxelOptionMassIsChecked {} {
-	set checked [$this voxelOptions getValue 1]
-	return $checked
+	return [$this voxelOptions getValue 1]
 }
-$this proc voxelOptionAxis1WhichIsChecked {} {
-	set checked [$this axis1 getValue]
-	return $checked
+$this proc voxelOptionAxis1WhichIsChecked {} {#its a radiobutton, so "WhichIsChecked"
+	return [$this axis1 getValue]
 }
 $this proc voxelOptionAxis2WhichIsChecked {} {
-	set checked [$this axis2 getValue]
-	return $checked
+	return [$this axis2 getValue]
 }
 
 #procedure for reslicing a voxel field to a given cut-plane.
@@ -205,8 +202,8 @@ $this proc reSlice { objectList } {
 		set origVolume [expr $bbox_X * $bbox_Y * $bbox_Z]
 		
 		#make the connections:
-		$this createModuleAndConnectIfOkToSource HxApplyTransform $applyTransformModule $object
-		$this createModuleAndConnectIfOkToSource HxObliqueSlice $obiqueSliceModule $object
+		createModuleAndConnectIfOkToSource HxApplyTransform $applyTransformModule $object
+		createModuleAndConnectIfOkToSource HxObliqueSlice $obiqueSliceModule $object
 		$applyTransformModule reference connect $obiqueSliceModule
 		
 		#get the original labelfield/orig_bundleindex to which the "object" was connected:
@@ -517,33 +514,6 @@ $this proc conPortLogic {} {
 			$this deleteConPortButtonsToggles [expr [llength [$this connectionPorts]] - 2];
 		}
 	}
-}
-
-# procedure which creates moduleType and connects it with sourceName module and checks if connection is valid \
-  moduleName is the name of the module in the pool \
-  if moduleName module does not exist it also gets created in the pool \
-  function returns the name of the newly created module
-$this proc createModuleAndConnectIfOkToSource { moduleType moduleName sourceName { conPortIndex 0 } } {
-	
-	# test if module is already in the pool and assigne the moduleToReturn variable as appropriate:
-	if { [lsearch [all $moduleType] $moduleName] == -1 } {
-		set hideNewModules 1;#why does this not work!!!
-		set moduleToReturn [create $moduleType $moduleName]
-		$moduleToReturn hideIcon;#hiding like this is also possible :)
-	} else {
-		set moduleToReturn $moduleName
-	}
-	# sets the desired connectionPort name, default is 0:
-	set theConnectionPort [lindex [$moduleName connectionPorts] $conPortIndex]
-	# connect or echo error in console:
-	if {
-		[$moduleName $theConnectionPort validSource $sourceName] && \
-		[$moduleName $theConnectionPort source] ne $sourceName
-	} {
-		$moduleName $theConnectionPort connect $sourceName
-	}
-	
-	return $moduleToReturn
 }
 
 # switches the given module port remotely from $this ($this must have a corresponding (i.e. same) port!) \

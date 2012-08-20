@@ -421,7 +421,7 @@ $this proc compute {} {
 			
 				$this testBreak
 			
-				$this createModuleAndConnectIfOkToSource HxGMC $surfaceGenModul $labelfield;# connect to labelfield
+				createModuleAndConnectIfOkToSource HxGMC $surfaceGenModul $labelfield;# connect to labelfield
 				
 				$surfaceGenModul fire
 				# SmoothKernelSize is a internal, but documented variable which i made visible in the gui, because it is sometimes useful for better quality of polygon surface generation
@@ -437,7 +437,7 @@ $this proc compute {} {
 				$surfaceGenModul fire
 				
 				# connect a SurfaceView module for selecting the user specified labels in buffer to the newly generated surface field from surfaceGenModul:
-				$this createModuleAndConnectIfOkToSource HxDisplaySurface $surfaceViewModul [lindex [$surfaceGenModul downStreamConnections] 0 0]
+				createModuleAndConnectIfOkToSource HxDisplaySurface $surfaceViewModul [lindex [$surfaceGenModul downStreamConnections] 0 0]
 						
 				$surfaceViewModul compute
 				$surfaceViewModul buffer setValue 2;# make shure buffer is empty for the first run (hits botton "clear")
@@ -461,7 +461,7 @@ $this proc compute {} {
 						$surfaceViewModul compute
 						
 						# here happens the extraction of the surfaces:
-						$this createModuleAndConnectIfOkToSource HxViewBaseExtract $extractSurfaceModul $surfaceViewModul;# createSurface command from HxDisplaySurface class\
+						createModuleAndConnectIfOkToSource HxViewBaseExtract $extractSurfaceModul $surfaceViewModul;# createSurface command from HxDisplaySurface class\
 						would also work, actually the createSurface command does the same in background but makes some overhead because of always deleting and creating\
 						 a HxViewBaseExtract module for every extracted surface - createModuleAndConnectIfOkToSource does not
 						$extractSurfaceModul action setValue 0
@@ -515,7 +515,7 @@ $this proc compute {} {
 				# in this foreach iteration the surfaces in the theExtractedSurfacesList will be rotated according to their respective principal axes:
 				foreach theSurface $theExtractedSurfacesList {
 					
-					$this createModuleAndConnectIfOkToSource HxAlignPrincipalAxes $alignPrincipalAxesModul $theSurface
+					createModuleAndConnectIfOkToSource HxAlignPrincipalAxes $alignPrincipalAxesModul $theSurface
 					$alignPrincipalAxesModul action setValue 0
 					$alignPrincipalAxesModul fire
 					
@@ -537,7 +537,7 @@ $this proc compute {} {
 				
 				$this testBreak
 				
-				$this createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$labelfield getControllingData];# connect a Arithmetic module to the voxelfield which connects to the labelfield
+				createModuleAndConnectIfOkToSource HxArithmetic $arythmeticModul [$labelfield getControllingData];# connect a Arithmetic module to the voxelfield which connects to the labelfield
 				$arythmeticModul inputB connect $labelfield;# connect inputB of Arithmetic module to the labelfield
 				
 				set theLabSetFromLabSetList [lindex $labSetList $labfieldCount];# the needed labSet port (e.g. labSet1, labSet2 ...)
