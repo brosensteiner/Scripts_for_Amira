@@ -792,7 +792,7 @@ $this proc compute {} {
 			}
 			
 		} else {
-			say "whatever you typed in the \"[$this saveResults getLabel]\" field ... , it is not a valid directory name, so nothing has been saved!"
+			say "whatever you typed in the \"[$this saveResults getLabel]\" port ... , it is not a valid directory name, so nothing has been saved!"
 		}
 		
 	}

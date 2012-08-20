@@ -48,5 +48,45 @@ $this proc updateModuleState {} {
 	
 }
 
+$this proc savingRoutine { thePath theList } {
+	
+	if { [file isdirectory $thePath] } {
+		
+		set fileType	[$this filetype getOptLabel 0 [$this filetype getOptValue 0]]
+		set fileName	[regsub {(.*?)\s\(.+?\)} $fileType {\1}]
+		set fileEnding	[regsub {.*?\s\((.+?)\)} $fileType {\1}]
+		
+		foreach result $theList {
+			
+			switch -exact [$result getTypeId] {
+				#HxUniformScalarField3 { $result save "Amiramesh ascii" $userSaveState/$result }
+				HxSurface { $result save $fileName $thePath/$result$fileEnding }
+			}
+		}
+		
+	} else {
+		theMsg warning "whatever you typed in the \"[$this saveResults getLabel]\" port ... , it is not a valid directory name, so nothing has been saved!"
+	}
+}
+
+
+$this proc convertNow { } {
+
+	global userSaveState
+	#making shure userSaveState is set (gets the first time set when compute proc runs)
+	if { ![info exists userSaveState] } { set userSaveState [$this saveResults getState] }
+	if { $userSaveState eq "" } {
+		theMsg warning "you have not specified a location for saving"
+	} else {
+	
+		if { [theMsg question "[llength [all HxSurface]] surface(s) in the Pool will be converted to \n[$this filetype getOptLabel 0 [$this filetype getOptValue 0]]\nand saved in  the location:\n$userSaveState" "Ok" "Stop"] == 0 } {
+			
+			$this savingRoutine $userSaveState [all HxSurface]
+		}	
+	}
+	unset userSaveState
+}
+
+
 
 

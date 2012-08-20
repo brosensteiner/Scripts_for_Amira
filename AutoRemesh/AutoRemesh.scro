@@ -29,6 +29,32 @@ $this proc constructor {} {
 	$this saveResults setLabel "Save result"
 	$this saveResults setMode 3
 	
+	#filetype for saving:
+	$this newPortButtonMenu filetype 1 1
+	$this filetype setOptLabels 0 [list "HxSurface ascii (.surf)" \
+										"HxSurface binary (.surf)" \
+										"Open Inventor (.iv)" \
+										"Wavefront (.obj)" \
+										"ABAQUS Input (.inp)" \
+										"AVS UCD ascii (.inp)" \
+										"AVS UCD binary (.inp)" \
+										"DXF (.dxf)" \
+										"FLUENT / UNS (.cas)" \
+										"FLUENT / UNS Binary (.cas)" \
+										"Hypermesh ascii (.hmascii)" \
+										"I-DEAS Universal File (.unv)" \
+										"I-DEAS Universal File (Vektorfield) (.unv)" \
+										"Matlab m-file (.m)" \
+										"STL ascii (.stl)" \
+										"STL binary Big Endian (.stl)" \
+										"STL binary Little Endian (.stl)" \
+										"Stanford PLY (.ply)" \
+								  ]
+	$this filetype setLabel 0 "Only convert"
+	$this filetype setCmd 0 { $this convertNow }
+	
+	$this newPortSeparator separator
+	
 	#recreating the ports of the RemeshSurface module and connecting with it:
 	$this newPortMultiMenu objective 2
 	$this objective setLabel 0 0 "High regularity"
@@ -161,21 +187,7 @@ $this proc compute {} {
 	
 	# saving routine:		
 	if { $userSaveState ne "" && $theRemeshedSurfacesList ne [list] } {# user has typed something in the saveResults port and theRemeshedSurfacesList is not empty
-		
-		if { [file isdirectory $userSaveState] } {
-		
-			foreach result $theRemeshedSurfacesList {
-				
-				switch -exact [$result getTypeId] {
-					#HxUniformScalarField3 { $result save "Amiramesh ascii" $userSaveState/$result }
-					HxSurface { $result save "HxSurface ascii" $userSaveState/$result }
-				}
-			}
-			
-		} else {
-			say "whatever you typed in the \"[$this saveResults getLabel]\" field ... , it is not a valid directory name, so nothing has been saved!"
-		}
-		
+		$this savingRoutine $userSaveState $theRemeshedSurfacesList
 	}
 	
 	$this setVar computeCounter [expr [$this getVar computeCounter] + 1];#increment compute counter
