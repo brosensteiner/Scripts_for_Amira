@@ -84,8 +84,8 @@ $this proc constructor {} {
 	$this newPortFloatTextN densityContrast 1
 	
 	$this newPortFloatTextN densityRange 2
-	$this errorThresholds setLabel 0 "min"
-	$this errorThresholds setLabel 1 "max"
+	$this densityRange setLabel 0 "min"
+	$this densityRange setLabel 1 "max"
 	
 	$this newPortRadioBox interpolateOrigSurface 2
 	$this interpolateOrigSurface setLabel "Interpolate orig. surface"
@@ -114,6 +114,8 @@ $this proc constructor {} {
 	$this action setLabel 0 "Dolt"
 	$this action hide;# actually need not be visible, because apply botton does the job
 	
+	#setting all ports to RemeshSurface module´s standard parameters:
+	$this settingStandardParameter
 	
 	sayHello
 
@@ -149,7 +151,9 @@ $this proc compute {} {
 	
 	#initial connect of theSurfaceRemesher (second!!! run of compute proc)
 	if { [$this getVar computeCounter] == 1 } {
-		
+	
+		createModuleAndConnectIfOkToSource HxRemeshSurface $theSurfaceRemesher [$this data source];
+			
 		#connecting all corresponding ports with a RemeshSurface module:
 		$this objective connect $theSurfaceRemesher objective
 		$this triangleArea connect $theSurfaceRemesher triangleArea
@@ -158,7 +162,7 @@ $this proc compute {} {
 		$this defaults connect $theSurfaceRemesher defaults
 		$this errorThresholds connect $theSurfaceRemesher errorThresholds
 		$this densityContrast connect $theSurfaceRemesher densityContrast
-		$this errorThresholds connect $theSurfaceRemesher errorThresholds
+		$this densityRange connect $theSurfaceRemesher densityRange
 		$this interpolateOrigSurface connect $theSurfaceRemesher interpolateOrigSurface
 		$this remeshOptions1 connect $theSurfaceRemesher remeshOptions1
 		$this remeshOptions2 connect $theSurfaceRemesher remeshOptions2
@@ -166,27 +170,16 @@ $this proc compute {} {
 		$this modifyResult connect $theSurfaceRemesher modifyResult
 		
 		#setting all ports to RemeshSurface module´s standard parameters:
-		$this triangleArea setValues 5 3 3
-		$this lloydRelaxation setValues 40
-		$this desiredSize setValues 0 0 100
-		$this errorThresholds setValues 0 0
-		$this densityContrast setValues 0
-		$this errorThresholds setValues 8.58993e+09 8.58993e+09
-		$this interpolateOrigSurface setValue 1
-		$this remeshOptions1 setValue 0 0
-		$this remeshOptions1 setValue 1 1
-		$this remeshOptions2 setValue 1
-		$this surfacePathOptions setValue 1 1
+		$this settingStandardParameter
 	}
 	
 	if { [$this action isNew] } {
-	
 		$this remeshAllSurfacesPlease allSurfacesInPoolList
 	}
 	
 	
 	# saving routine:		
-	if { $userSaveState ne "" && $theRemeshedSurfacesList ne [list] } {# user has typed something in the saveResults port and theRemeshedSurfacesList is not empty
+	if { $userSaveState ne "" && [llength $theRemeshedSurfacesList] > 0 } {# user has typed something in the saveResults port and theRemeshedSurfacesList is not empty
 		$this savingRoutine $userSaveState $theRemeshedSurfacesList
 	}
 	

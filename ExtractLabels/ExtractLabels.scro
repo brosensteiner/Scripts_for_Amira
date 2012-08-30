@@ -502,6 +502,7 @@ $this proc compute {} {
 						$newExtractedSurface recompute
 						$newExtractedSurface setDefaultFileFormat "HxSurface ascii"
 						$newExtractedSurface compute
+						
 						$surfaceViewModul buffer setValue 2;# remove from buffer (hit remove button)
 						$surfaceViewModul compute
 						
@@ -521,6 +522,7 @@ $this proc compute {} {
 					
 				}
 				
+				testTopology theExtractedSurfacesList;#tests toplology criteria and echos eventzal errors when surface is not orientable and connected
 				
 				remove $alignPrincipalAxesModul;# AlignPrincipalAxes module is not needed any more.
 				incr labfieldCount

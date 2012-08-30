@@ -13,6 +13,7 @@ $this proc remeshAllSurfacesPlease { surfacelist } {
 		
 		say "remeshing $counter of [llength $surfacelistUpvar] surface(s) ($item)"
 		createModuleAndConnectIfOkToSource HxRemeshSurface $theSurfaceRemesher $item;
+		
 		$theSurfaceRemesher remesh setValue 0
 		$theSurfaceRemesher fire;#this will take much computation time ...
 		set theResult [$theSurfaceRemesher getResult]
@@ -22,6 +23,20 @@ $this proc remeshAllSurfacesPlease { surfacelist } {
 		lappend theRemeshedSurfacesList $theResult
 		incr counter
 	}
+}
+
+$this proc settingStandardParameter {} {
+	$this triangleArea setValues 5 3 3
+	$this lloydRelaxation setValues 40
+	$this desiredSize setValues 0 0 100
+	$this errorThresholds setValues 0 0
+	$this densityContrast setValues 0
+	#$this densityRange setValues 8.58993e+09 8.58993e+09
+	$this interpolateOrigSurface setValue 1
+	$this remeshOptions1 setValue 0 0
+	$this remeshOptions1 setValue 1 1
+	$this remeshOptions2 setValue 0
+	$this surfacePathOptions setValue 1 1
 }
 
 $this proc updateModuleState {} {
@@ -72,19 +87,16 @@ $this proc savingRoutine { thePath theList } {
 
 $this proc convertNow { } {
 
-	global userSaveState
 	#making shure userSaveState is set (gets the first time set when compute proc runs)
-	if { ![info exists userSaveState] } { set userSaveState [$this saveResults getState] }
+	set userSaveState [$this saveResults getState]
 	if { $userSaveState eq "" } {
 		theMsg warning "you have not specified a location for saving"
 	} else {
 	
 		if { [theMsg question "[llength [all HxSurface]] surface(s) in the Pool will be converted to \n[$this filetype getOptLabel 0 [$this filetype getOptValue 0]]\nand saved in  the location:\n$userSaveState" "Ok" "Stop"] == 0 } {
-			
 			$this savingRoutine $userSaveState [all HxSurface]
 		}	
 	}
-	unset userSaveState
 }
 
 
